@@ -29,6 +29,9 @@ jobs:
       - name: Install base tools
         run: apt-get update && apt-get install -y git curl build-essential pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev dpkg-dev apt-utils
 
+      - name: Fix git ownership
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
