@@ -236,6 +236,15 @@ pub struct ZombieArm {
 #[derive(Component, Clone, Copy)]
 pub struct ZombieVariant(pub u8);
 
+/// Abgetrenntes Koerperteil das wegfliegt, verrottet und verschwindet
+#[derive(Component)]
+pub struct Gib {
+    pub lifetime: Timer,
+    pub on_ground: bool,
+    pub decay_timer: Timer,
+    pub original_size: Vec2,
+}
+
 #[derive(Component)]
 pub struct Zombie {
     pub speed: f32,

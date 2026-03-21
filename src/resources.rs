@@ -139,7 +139,22 @@ pub struct GameSettings {
 
     #[serde(default)]
     pub friendly_fire: bool,
+
+    // Gore-Settings
+    #[serde(default = "default_blood_particles")]
+    pub blood_particles: u32,
+    #[serde(default = "default_blood_spread")]
+    pub blood_spread_speed: f32,
+    #[serde(default = "default_dismember_chance")]
+    pub dismember_chance: f32,
+    #[serde(default = "default_gib_decay")]
+    pub gib_decay_time: f32,
 }
+
+fn default_blood_particles() -> u32 { 4 }
+fn default_blood_spread() -> f32 { 100.0 }
+fn default_dismember_chance() -> f32 { 0.30 }
+fn default_gib_decay() -> f32 { 3.0 }
 
 fn default_shotgun() -> WeaponSettings {
     WeaponSettings {
@@ -444,6 +459,10 @@ impl Default for GameSettings {
             freezegun: default_freezegun(),
             explosion_radius: 80.0,
             friendly_fire: false,
+            blood_particles: 4,
+            blood_spread_speed: 100.0,
+            dismember_chance: 0.30,
+            gib_decay_time: 3.0,
         }
     }
 }

@@ -13,13 +13,13 @@ pub const PLAYER_COLOR_P2: Color = Color::srgb(0.2, 0.4, 0.9);
 pub const ZOMBIE_SIZE: Vec2 = Vec2::new(28.0, 36.0);
 pub const ZOMBIE_COLOR: Color = Color::srgb(0.8, 0.15, 0.15);
 
-// Blut
-pub const BLOOD_PARTICLE_SIZE: Vec2 = Vec2::new(4.0, 4.0);
-pub const BLOOD_PARTICLES_PER_HIT: u32 = 8;
-pub const BLOOD_SPREAD_SPEED: f32 = 150.0;
-pub const BLOOD_LIFETIME: f32 = 0.3;
-pub const BLOOD_COLOR_MIN: Color = Color::srgb(0.4, 0.0, 0.0);
-pub const BLOOD_COLOR_MAX: Color = Color::srgb(0.7, 0.05, 0.05);
+// Blut (dezenter)
+pub const BLOOD_PARTICLE_SIZE: Vec2 = Vec2::new(3.0, 3.0);
+pub const BLOOD_PARTICLES_PER_HIT: u32 = 4;
+pub const BLOOD_SPREAD_SPEED: f32 = 100.0;
+pub const BLOOD_LIFETIME: f32 = 0.25;
+pub const BLOOD_COLOR_MIN: Color = Color::srgb(0.35, 0.0, 0.0);
+pub const BLOOD_COLOR_MAX: Color = Color::srgb(0.55, 0.03, 0.03);
 
 // Raum
 pub const WALL_THICKNESS: f32 = 20.0;

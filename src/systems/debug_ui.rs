@@ -51,6 +51,11 @@ fn entries() -> Vec<Entry> {
         Entry { label: "Wave Pause",       get: |s| s.wave_pause,             set: |s,v| s.wave_pause = v,             step: 0.5,   min: 0.5,   max: 60.0 },
         Entry { label: "Explosion Radius", get: |s| s.explosion_radius,       set: |s,v| s.explosion_radius = v,       step: 5.0,   min: 20.0,  max: 1000.0 },
         Entry { label: "Friendly Fire",   get: |s| if s.friendly_fire { 1.0 } else { 0.0 }, set: |s,v| s.friendly_fire = v >= 0.5, step: 1.0, min: 0.0, max: 1.0 },
+        // Gore
+        Entry { label: "Blood Particles", get: |s| s.blood_particles as f32, set: |s,v| s.blood_particles = v as u32, step: 1.0, min: 0.0, max: 30.0 },
+        Entry { label: "Blood Spread",    get: |s| s.blood_spread_speed,     set: |s,v| s.blood_spread_speed = v,     step: 10.0, min: 0.0, max: 500.0 },
+        Entry { label: "Dismember %",     get: |s| s.dismember_chance * 100.0, set: |s,v| s.dismember_chance = v / 100.0, step: 5.0, min: 0.0, max: 100.0 },
+        Entry { label: "Gib Decay",       get: |s| s.gib_decay_time,         set: |s,v| s.gib_decay_time = v,         step: 0.5, min: 0.5, max: 30.0 },
         // Pistole
         w!("Pistol CD",     pistol.cooldown,     0.05, 0.02, 10.0),
         w!("Pistol Mag",    pistol.magazine,      1.0,  1.0, 500.0),

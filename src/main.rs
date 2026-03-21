@@ -94,6 +94,7 @@ fn main() {
                 weapons::drop_pickup,
                 player::player_walk_animation,
                 zombie::zombie_animation,
+                blood::gib_update,
             )
                 .run_if(in_state(GameState::Playing)),
         )

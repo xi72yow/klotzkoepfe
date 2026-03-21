@@ -22,22 +22,37 @@ pub fn bullet_zombie_collision(
     mut combo: ResMut<ComboMeter>,
     settings: Res<GameSettings>,
     mut bullet_query: Query<(Entity, &Transform, &mut Bullet, Option<&TeslaBullet>, Option<&FreezeBullet>)>,
-    mut zombie_query: Query<(Entity, &Transform, &mut Health, &mut Zombie)>,
+    mut zombie_query: Query<(Entity, &Transform, &mut Health, &mut Zombie, Option<&Children>)>,
+    zombie_arm_query: Query<(Entity, &ZombieArm, &Sprite, &Transform), Without<ZombieLeg>>,
+    zombie_leg_query: Query<(Entity, &ZombieLeg, &Sprite, &Transform), Without<ZombieArm>>,
+    sprite_query: Query<(&Sprite, &Transform), (Without<Zombie>, Without<Player>)>,
 ) {
     // Sammle Zombie-Positionen fuer Tesla-Chain
     let zombie_positions: Vec<(Entity, Vec2)> = zombie_query.iter()
-        .map(|(e, t, _, _)| (e, t.translation.truncate()))
+        .map(|(e, t, _, _, _)| (e, t.translation.truncate()))
         .collect();
 
     for (bullet_entity, bullet_transform, mut bullet, tesla, freeze) in bullet_query.iter_mut() {
         let bullet_pos = bullet_transform.translation.truncate();
 
-        for (zombie_entity, zombie_transform, mut health, mut zombie) in zombie_query.iter_mut() {
+        for (zombie_entity, zombie_transform, mut health, mut zombie, children) in zombie_query.iter_mut() {
             let zombie_pos = zombie_transform.translation.truncate();
 
             if aabb_overlap(bullet_pos, Vec2::new(8.0, 8.0), zombie_pos, crate::constants::ZOMBIE_SIZE) {
                 health.current -= bullet.damage;
                 spawn_blood(&mut commands, bullet_pos);
+
+                // Dismemberment bei Treffer (nicht-toedlich)
+                if health.current > 0.0 {
+                    if let Some(ch) = children {
+                        let bullet_dir = (zombie_pos - bullet_pos).normalize_or_zero();
+                        crate::systems::blood::try_dismember(
+                            &mut commands, zombie_entity, zombie_pos, bullet_dir,
+                            ch, &zombie_arm_query, &zombie_leg_query,
+                            settings.dismember_chance, settings.gib_decay_time,
+                        );
+                    }
+                }
 
                 // Freeze-Effekt
                 if let Some(fb) = freeze {
@@ -53,8 +68,8 @@ pub fn bullet_zombie_collision(
 
                         for _ in 0..tb.chain_count {
                             if let Some((next_e, next_pos)) = zombie_positions.iter()
-                                .filter(|(e, _)| !used.contains(e))
-                                .min_by(|(_, a), (_, b)| {
+                                .filter(|(e, _): &&(Entity, Vec2)| !used.contains(e))
+                                .min_by(|(_, a): &&(Entity, Vec2), (_, b): &&(Entity, Vec2)| {
                                     a.distance(last_pos).partial_cmp(&b.distance(last_pos)).unwrap()
                                 })
                             {
@@ -88,11 +103,17 @@ pub fn bullet_zombie_collision(
                         }
                     }
 
+                    // Zombie explodiert: alle Teile als Gibs
+                    if let Some(ch) = children {
+                        crate::systems::blood::zombie_explode(
+                            &mut commands, zombie_pos, ch, &sprite_query,
+                            settings.gib_decay_time,
+                        );
+                    }
                     commands.entity(zombie_entity).try_despawn();
                     score.kills += 1;
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     combo.position += settings.combo_kill_boost;
-                    spawn_blood(&mut commands, zombie_pos);
 
                     // Drop-Chance (~8%)
                     if rand::rng().random_ratio(1, 12) {
@@ -117,14 +138,15 @@ pub fn explosion_zombie_collision(
     mut combo: ResMut<ComboMeter>,
     settings: Res<GameSettings>,
     mut explosion_query: Query<(&Transform, &mut Explosion)>,
-    mut zombie_query: Query<(Entity, &Transform, &mut Health), With<Zombie>>,
+    mut zombie_query: Query<(Entity, &Transform, &mut Health, Option<&Children>), With<Zombie>>,
+    sprite_query: Query<(&Sprite, &Transform), (Without<Zombie>, Without<Player>)>,
 ) {
     for (expl_transform, mut explosion) in explosion_query.iter_mut() {
         if explosion.damaged { continue; }
         explosion.damaged = true;
         let expl_pos = expl_transform.translation.truncate();
 
-        for (zombie_entity, zombie_transform, mut health) in zombie_query.iter_mut() {
+        for (zombie_entity, zombie_transform, mut health, children) in zombie_query.iter_mut() {
             let zombie_pos = zombie_transform.translation.truncate();
             let dist = expl_pos.distance(zombie_pos);
             if dist < explosion.radius {
@@ -132,11 +154,17 @@ pub fn explosion_zombie_collision(
                 health.current -= explosion.damage * falloff;
                 spawn_blood(&mut commands, zombie_pos);
                 if health.current <= 0.0 {
+                    // Zombie explodiert
+                    if let Some(ch) = children {
+                        crate::systems::blood::zombie_explode(
+                            &mut commands, zombie_pos, ch, &sprite_query,
+                            settings.gib_decay_time,
+                        );
+                    }
                     commands.entity(zombie_entity).try_despawn();
                     score.kills += 1;
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     combo.position += settings.combo_kill_boost;
-                    spawn_blood(&mut commands, zombie_pos);
                     if rand::rng().random_ratio(1, 12) {
                         spawn_drop(&mut commands, zombie_pos);
                     }
