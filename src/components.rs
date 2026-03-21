@@ -6,7 +6,7 @@ pub enum PlayerId {
     P2,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum WeaponType {
     Pistol,
     Uzi,
@@ -43,20 +43,62 @@ impl WeaponType {
     }
 
     pub fn name(self) -> &'static str {
-        match self {
-            WeaponType::Pistol => "Pistole",
-            WeaponType::Uzi => "Uzi",
-            WeaponType::Grenade => "Granate",
-            WeaponType::Railgun => "Railgun",
-            WeaponType::Flamethrower => "Flammenwerfer",
-            WeaponType::Shotgun => "Shotgun",
-            WeaponType::Laser => "Laser",
-            WeaponType::Mine => "Mine",
-            WeaponType::Boomerang => "Boomerang",
-            WeaponType::Tesla => "Tesla",
-            WeaponType::Buzzsaw => "Kreissaege",
-            WeaponType::Rocket => "Rakete",
-            WeaponType::FreezeGun => "Freeze Gun",
+        self.name_at_level(1)
+    }
+
+    pub fn name_at_level(self, level: u32) -> &'static str {
+        match (self, level) {
+            (WeaponType::Pistol, 1) => "Pistole",
+            (WeaponType::Pistol, 2) => "Revolver",
+            (WeaponType::Pistol, _) => "Deagle",
+
+            (WeaponType::Uzi, 1) => "Uzi",
+            (WeaponType::Uzi, 2) => "MP5",
+            (WeaponType::Uzi, _) => "P90",
+
+            (WeaponType::Shotgun, 1) => "Shotgun",
+            (WeaponType::Shotgun, 2) => "Pumpgun",
+            (WeaponType::Shotgun, _) => "Auto-Shotgun",
+
+            (WeaponType::Grenade, 1) => "Granate",
+            (WeaponType::Grenade, 2) => "Splitter",
+            (WeaponType::Grenade, _) => "Cluster",
+
+            (WeaponType::Railgun, 1) => "Railgun",
+            (WeaponType::Railgun, 2) => "Gaussgewehr",
+            (WeaponType::Railgun, _) => "Partikelkanone",
+
+            (WeaponType::Flamethrower, 1) => "Flammenwerfer",
+            (WeaponType::Flamethrower, 2) => "Inferno",
+            (WeaponType::Flamethrower, _) => "Hoellenfeuer",
+
+            (WeaponType::Laser, 1) => "Laser",
+            (WeaponType::Laser, 2) => "Phaser",
+            (WeaponType::Laser, _) => "Todesstrahl",
+
+            (WeaponType::Mine, 1) => "Mine",
+            (WeaponType::Mine, 2) => "Sprengfalle",
+            (WeaponType::Mine, _) => "Nuklearmine",
+
+            (WeaponType::Boomerang, 1) => "Boomerang",
+            (WeaponType::Boomerang, 2) => "Doppelrang",
+            (WeaponType::Boomerang, _) => "Triplerang",
+
+            (WeaponType::Tesla, 1) => "Tesla",
+            (WeaponType::Tesla, 2) => "Blitzgewitter",
+            (WeaponType::Tesla, _) => "Donnergott",
+
+            (WeaponType::Buzzsaw, 1) => "Kreissaege",
+            (WeaponType::Buzzsaw, 2) => "Todessaege",
+            (WeaponType::Buzzsaw, _) => "Phantomsaege",
+
+            (WeaponType::Rocket, 1) => "Rakete",
+            (WeaponType::Rocket, 2) => "Panzerfaust",
+            (WeaponType::Rocket, _) => "ICBM",
+
+            (WeaponType::FreezeGun, 1) => "Freeze Gun",
+            (WeaponType::FreezeGun, 2) => "Frostknarre",
+            (WeaponType::FreezeGun, _) => "Eissturm",
         }
     }
 
@@ -152,6 +194,8 @@ pub struct Player {
     pub reloading: bool,
     pub reload_elapsed: f32,
 }
+
+
 
 #[derive(Component)]
 pub struct WeaponSprite;

@@ -58,6 +58,8 @@ fn entries() -> Vec<Entry> {
         w!("Pistol Range",  pistol.range,        25.0, 50.0, 5000.0),
         w!("Pistol Speed",  pistol.bullet_speed, 25.0, 50.0, 5000.0),
         w!("Pistol Score",  pistol.score_required,1.0,  0.0, 500.0),
+        w!("Pistol Lv2",   pistol.score_level_2, 1.0,  0.0, 500.0),
+        w!("Pistol Lv3",   pistol.score_level_3, 1.0,  0.0, 500.0),
         // Shotgun
         w!("Shotgun CD",    shotgun.cooldown,    0.1,  0.1, 10.0),
         w!("Shotgun Mag",   shotgun.magazine,     1.0,  1.0, 200.0),
@@ -66,12 +68,16 @@ fn entries() -> Vec<Entry> {
         w!("Shotgun Spread",shotgun.spread_angle, 0.05, 0.1, 3.14),
         w!("Shotgun Speed", shotgun.bullet_speed, 25.0, 50.0, 5000.0),
         w!("Shotgun Score", shotgun.score_required,1.0, 0.0, 500.0),
+        w!("Shotgun Lv2",  shotgun.score_level_2, 1.0, 0.0, 500.0),
+        w!("Shotgun Lv3",  shotgun.score_level_3, 1.0, 0.0, 500.0),
         // Uzi
         w!("Uzi CD",       uzi.cooldown,        0.01, 0.02, 5.0),
         w!("Uzi Mag",      uzi.magazine,         5.0,  5.0, 1000.0),
         w!("Uzi Dmg",      uzi.damage,           1.0,  1.0, 500.0),
         w!("Uzi Speed",    uzi.bullet_speed,    25.0, 50.0, 5000.0),
         w!("Uzi Score",    uzi.score_required,    1.0,  0.0, 500.0),
+        w!("Uzi Lv2",     uzi.score_level_2,     1.0,  0.0, 500.0),
+        w!("Uzi Lv3",     uzi.score_level_3,     1.0,  0.0, 500.0),
         // Flammenwerfer
         w!("Flame CD",     flamethrower.cooldown,    0.01, 0.01, 5.0),
         w!("Flame Mag",    flamethrower.magazine,     5.0, 10.0, 2000.0),
@@ -79,6 +85,8 @@ fn entries() -> Vec<Entry> {
         w!("Flame Range",  flamethrower.range,       10.0, 50.0, 2000.0),
         w!("Flame Speed",  flamethrower.bullet_speed,10.0, 50.0, 5000.0),
         w!("Flame Score",  flamethrower.score_required,1.0, 0.0, 500.0),
+        w!("Flame Lv2",   flamethrower.score_level_2, 1.0, 0.0, 500.0),
+        w!("Flame Lv3",   flamethrower.score_level_3, 1.0, 0.0, 500.0),
         // Granate (Fuse = Range/Speed)
         w!("Grenade CD",   grenade.cooldown,      0.1,  0.2, 30.0),
         w!("Grenade Mag",  grenade.magazine,       1.0,  1.0, 200.0),
@@ -87,6 +95,8 @@ fn entries() -> Vec<Entry> {
         w!("Grenade Speed",grenade.bullet_speed,  25.0, 50.0, 5000.0),
         Entry { label: "Grenade Fuse", get: |s| s.grenade.range / s.grenade.bullet_speed.max(1.0), set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0 },
         w!("Grenade Score",grenade.score_required, 1.0,  0.0, 500.0),
+        w!("Grenade Lv2", grenade.score_level_2,  1.0,  0.0, 500.0),
+        w!("Grenade Lv3", grenade.score_level_3,  1.0,  0.0, 500.0),
         // Railgun
         w!("Rail CD",      railgun.cooldown,      0.1,  0.1, 30.0),
         w!("Rail Mag",     railgun.magazine,       1.0,  1.0, 200.0),
@@ -94,6 +104,8 @@ fn entries() -> Vec<Entry> {
         w!("Rail Range",   railgun.range,         50.0,100.0,10000.0),
         w!("Rail Speed",   railgun.bullet_speed, 50.0,100.0,10000.0),
         w!("Rail Score",   railgun.score_required, 1.0,  0.0, 500.0),
+        w!("Rail Lv2",    railgun.score_level_2,  1.0,  0.0, 500.0),
+        w!("Rail Lv3",    railgun.score_level_3,  1.0,  0.0, 500.0),
         // Freeze Gun
         w!("Freeze CD",    freezegun.cooldown,    0.05, 0.05, 10.0),
         w!("Freeze Mag",   freezegun.magazine,     1.0,  1.0, 500.0),
@@ -102,6 +114,8 @@ fn entries() -> Vec<Entry> {
         w!("Freeze Dur",   freezegun.slow_duration, 0.5,  0.5, 60.0),
         w!("Freeze Speed", freezegun.bullet_speed,25.0, 50.0, 5000.0),
         w!("Freeze Score", freezegun.score_required,1.0,  0.0, 500.0),
+        w!("Freeze Lv2",  freezegun.score_level_2,1.0,  0.0, 500.0),
+        w!("Freeze Lv3",  freezegun.score_level_3,1.0,  0.0, 500.0),
         // Kreissaege
         w!("Saw CD",       buzzsaw.cooldown,      0.1,  0.2, 30.0),
         w!("Saw Mag",      buzzsaw.magazine,       1.0,  1.0, 200.0),
@@ -109,6 +123,8 @@ fn entries() -> Vec<Entry> {
         w!("Saw Speed",    buzzsaw.bullet_speed,  10.0, 30.0, 2000.0),
         w!("Saw Range",    buzzsaw.range,         50.0, 100.0,5000.0),
         w!("Saw Score",    buzzsaw.score_required, 1.0,  0.0, 500.0),
+        w!("Saw Lv2",     buzzsaw.score_level_2,  1.0,  0.0, 500.0),
+        w!("Saw Lv3",     buzzsaw.score_level_3,  1.0,  0.0, 500.0),
         // Tesla
         w!("Tesla CD",     tesla.cooldown,        0.05, 0.1, 10.0),
         w!("Tesla Mag",    tesla.magazine,         1.0,  1.0, 300.0),
@@ -117,6 +133,8 @@ fn entries() -> Vec<Entry> {
         w!("Tesla ChainR", tesla.chain_range,     10.0, 20.0, 2000.0),
         w!("Tesla Speed",  tesla.bullet_speed,    25.0, 50.0, 5000.0),
         w!("Tesla Score",  tesla.score_required,   1.0,  0.0, 500.0),
+        w!("Tesla Lv2",   tesla.score_level_2,    1.0,  0.0, 500.0),
+        w!("Tesla Lv3",   tesla.score_level_3,    1.0,  0.0, 500.0),
         // Mine
         w!("Mine CD",      mine.cooldown,         0.1,  0.2, 30.0),
         w!("Mine Mag",     mine.magazine,          1.0,  1.0, 200.0),
@@ -124,6 +142,8 @@ fn entries() -> Vec<Entry> {
         w!("Mine Trigger",  mine.trigger_radius,   5.0, 10.0, 500.0),
         w!("Mine ExplR",   mine.explosion_radius_override,5.0,20.0,1000.0),
         w!("Mine Score",   mine.score_required,    1.0,  0.0, 500.0),
+        w!("Mine Lv2",    mine.score_level_2,     1.0,  0.0, 500.0),
+        w!("Mine Lv3",    mine.score_level_3,     1.0,  0.0, 500.0),
         // Boomerang
         w!("Boom CD",      boomerang.cooldown,    0.1,  0.2, 30.0),
         w!("Boom Mag",     boomerang.magazine,     1.0,  1.0, 100.0),
@@ -131,6 +151,8 @@ fn entries() -> Vec<Entry> {
         w!("Boom Range",   boomerang.range,       25.0, 50.0, 5000.0),
         w!("Boom Speed",   boomerang.bullet_speed,25.0,100.0, 3000.0),
         w!("Boom Score",   boomerang.score_required,1.0, 0.0, 500.0),
+        w!("Boom Lv2",    boomerang.score_level_2,1.0, 0.0, 500.0),
+        w!("Boom Lv3",    boomerang.score_level_3,1.0, 0.0, 500.0),
         // Rakete (explodiert bei Kontakt)
         w!("Rocket CD",    rocket.cooldown,       0.1,  0.3, 30.0),
         w!("Rocket Mag",   rocket.magazine,        1.0,  1.0, 100.0),
@@ -139,6 +161,8 @@ fn entries() -> Vec<Entry> {
         w!("Rocket Speed", rocket.bullet_speed,   25.0, 50.0, 5000.0),
         w!("Rocket ExplR", rocket.explosion_radius_override,5.0,20.0,1000.0),
         w!("Rocket Score", rocket.score_required,  1.0,  0.0, 500.0),
+        w!("Rocket Lv2",  rocket.score_level_2,   1.0,  0.0, 500.0),
+        w!("Rocket Lv3",  rocket.score_level_3,   1.0,  0.0, 500.0),
         // Laser
         w!("Laser CD",     laser.cooldown,        0.01, 0.01, 5.0),
         w!("Laser Mag",    laser.magazine,         5.0, 10.0, 2000.0),
@@ -146,6 +170,8 @@ fn entries() -> Vec<Entry> {
         w!("Laser Range",  laser.range,           50.0,100.0,10000.0),
         w!("Laser Speed",  laser.bullet_speed,   100.0,500.0,10000.0),
         w!("Laser Score",  laser.score_required,   1.0,  0.0, 500.0),
+        w!("Laser Lv2",   laser.score_level_2,    1.0,  0.0, 500.0),
+        w!("Laser Lv3",   laser.score_level_3,    1.0,  0.0, 500.0),
     ]
 }
 

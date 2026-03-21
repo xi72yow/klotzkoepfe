@@ -86,6 +86,10 @@ pub struct WeaponSettings {
     pub explosion_radius_override: f32,
     #[serde(default)]
     pub trigger_radius: f32,
+    #[serde(default)]
+    pub score_level_2: i32,
+    #[serde(default)]
+    pub score_level_3: i32,
 }
 
 #[derive(Resource, Clone, serde::Serialize, serde::Deserialize)]
@@ -142,6 +146,7 @@ fn default_shotgun() -> WeaponSettings {
         cooldown: 0.6, magazine: 8, reload_time: 2.0, range: 200.0,
         damage: 8.0, bullet_speed: 400.0, score_required: 3,
         pellet_count: 7, spread_angle: 0.4,
+        score_level_2: 8, score_level_3: 20,
         ..WeaponSettings::empty()
     }
 }
@@ -149,6 +154,7 @@ fn default_laser() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.03, magazine: 60, reload_time: 3.0, range: 600.0,
         damage: 4.0, bullet_speed: 1800.0, score_required: 35,
+        score_level_2: 42, score_level_3: 55,
         ..WeaponSettings::empty()
     }
 }
@@ -157,13 +163,15 @@ fn default_mine() -> WeaponSettings {
         cooldown: 0.05, magazine: 5, reload_time: 3.0, range: 0.0,
         damage: 60.0, bullet_speed: 0.0, score_required: 25,
         trigger_radius: 40.0, explosion_radius_override: 90.0,
+        score_level_2: 32, score_level_3: 45,
         ..WeaponSettings::empty()
     }
 }
 fn default_boomerang() -> WeaponSettings {
     WeaponSettings {
-        cooldown: 0.8, magazine: 3, reload_time: 2.0, range: 250.0,
+        cooldown: 0.8, magazine: 1, reload_time: 2.0, range: 250.0,
         damage: 20.0, bullet_speed: 350.0, score_required: 28,
+        score_level_2: 35, score_level_3: 48,
         ..WeaponSettings::empty()
     }
 }
@@ -172,6 +180,7 @@ fn default_tesla() -> WeaponSettings {
         cooldown: 0.5, magazine: 8, reload_time: 2.0, range: 300.0,
         damage: 15.0, bullet_speed: 500.0, score_required: 22,
         chain_count: 3, chain_range: 80.0,
+        score_level_2: 30, score_level_3: 42,
         ..WeaponSettings::empty()
     }
 }
@@ -179,6 +188,7 @@ fn default_buzzsaw() -> WeaponSettings {
     WeaponSettings {
         cooldown: 1.2, magazine: 4, reload_time: 2.5, range: 500.0,
         damage: 12.0, bullet_speed: 100.0, score_required: 20,
+        score_level_2: 28, score_level_3: 40,
         ..WeaponSettings::empty()
     }
 }
@@ -187,6 +197,7 @@ fn default_rocket() -> WeaponSettings {
         cooldown: 1.5, magazine: 2, reload_time: 3.0, range: 400.0,
         damage: 80.0, bullet_speed: 450.0, score_required: 30,
         explosion_radius_override: 120.0,
+        score_level_2: 38, score_level_3: 50,
         ..WeaponSettings::empty()
     }
 }
@@ -195,6 +206,7 @@ fn default_freezegun() -> WeaponSettings {
         cooldown: 0.3, magazine: 15, reload_time: 2.0, range: 250.0,
         damage: 3.0, bullet_speed: 400.0, score_required: 18,
         slow_factor: 0.25, slow_duration: 3.0,
+        score_level_2: 25, score_level_3: 38,
         ..WeaponSettings::empty()
     }
 }
@@ -208,9 +220,12 @@ impl WeaponSettings {
             chain_count: 0, chain_range: 0.0,
             slow_factor: 0.0, slow_duration: 0.0,
             explosion_radius_override: 0.0, trigger_radius: 0.0,
+            score_level_2: 0, score_level_3: 0,
         }
     }
 }
+
+pub const MAX_WEAPON_LEVEL: u32 = 3;
 
 impl GameSettings {
     pub fn weapon(&self, w: WeaponType) -> &WeaponSettings {
@@ -228,6 +243,99 @@ impl GameSettings {
             WeaponType::Buzzsaw => &self.buzzsaw,
             WeaponType::Rocket => &self.rocket,
             WeaponType::FreezeGun => &self.freezegun,
+        }
+    }
+
+    /// Berechnet Waffen-Level basierend auf Score
+    pub fn weapon_level(&self, w: WeaponType, score: i32) -> u32 {
+        let ws = self.weapon(w);
+        if ws.score_level_3 > 0 && score >= ws.score_level_3 { 3 }
+        else if ws.score_level_2 > 0 && score >= ws.score_level_2 { 2 }
+        else { 1 }
+    }
+
+    /// Gibt Level-skalierte Waffen-Stats zurueck
+    pub fn weapon_at_level(&self, w: WeaponType, level: u32) -> WeaponSettings {
+        let base = self.weapon(w).clone();
+        if level <= 1 { return base; }
+
+        let lvl = level.min(MAX_WEAPON_LEVEL);
+
+        // Spezial-Verhalten pro Waffe
+        match w {
+            WeaponType::Boomerang => {
+                // Level = Anzahl Wuerfe bevor Reload
+                WeaponSettings {
+                    magazine: lvl,
+                    cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
+                    damage: base.damage * (1.0 + 0.25 * (lvl - 1) as f32),
+                    ..base
+                }
+            }
+            WeaponType::Shotgun => {
+                // Mehr Pellets, engerer Spread
+                WeaponSettings {
+                    pellet_count: base.pellet_count + (lvl - 1) * 2,
+                    spread_angle: base.spread_angle * (1.0 - 0.15 * (lvl - 1) as f32),
+                    damage: base.damage * (1.0 + 0.15 * (lvl - 1) as f32),
+                    ..base
+                }
+            }
+            WeaponType::Uzi => {
+                // Schneller, mehr Reichweite, groesseres Magazin
+                WeaponSettings {
+                    cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
+                    range: base.range * (1.0 + 0.25 * (lvl - 1) as f32),
+                    magazine: base.magazine + (lvl - 1) * 10,
+                    ..base
+                }
+            }
+            WeaponType::Tesla => {
+                // Mehr Chains, mehr Chain-Range
+                WeaponSettings {
+                    chain_count: base.chain_count + (lvl - 1) * 2,
+                    chain_range: base.chain_range * (1.0 + 0.3 * (lvl - 1) as f32),
+                    damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
+                    ..base
+                }
+            }
+            WeaponType::FreezeGun => {
+                // Laenger einfrieren, mehr Slow
+                WeaponSettings {
+                    slow_duration: base.slow_duration * (1.0 + 0.4 * (lvl - 1) as f32),
+                    slow_factor: (base.slow_factor * (1.0 - 0.2 * (lvl - 1) as f32)).max(0.05),
+                    magazine: base.magazine + (lvl - 1) * 5,
+                    ..base
+                }
+            }
+            WeaponType::Mine => {
+                // Groesserer Explosionsradius, mehr Damage
+                WeaponSettings {
+                    explosion_radius_override: base.explosion_radius_override * (1.0 + 0.3 * (lvl - 1) as f32),
+                    damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
+                    magazine: base.magazine + (lvl - 1) * 2,
+                    ..base
+                }
+            }
+            WeaponType::Grenade | WeaponType::Rocket => {
+                // Mehr Damage, groesserer Radius
+                WeaponSettings {
+                    damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
+                    explosion_radius_override: base.explosion_radius_override * (1.0 + 0.25 * (lvl - 1) as f32),
+                    magazine: base.magazine + (lvl - 1),
+                    ..base
+                }
+            }
+            // Generisch: alle anderen Waffen
+            _ => {
+                WeaponSettings {
+                    damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
+                    cooldown: base.cooldown * (1.0 - 0.15 * (lvl - 1) as f32),
+                    magazine: base.magazine + (lvl - 1) * 3,
+                    range: base.range * (1.0 + 0.15 * (lvl - 1) as f32),
+                    ..base
+                }
+            }
         }
     }
 
@@ -298,27 +406,32 @@ impl Default for GameSettings {
             pistol: WeaponSettings {
                 cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 350.0,
                 damage: 10.0, bullet_speed: 500.0, score_required: 0,
+                score_level_2: 5, score_level_3: 15,
                 ..WeaponSettings::empty()
             },
             uzi: WeaponSettings {
                 cooldown: 0.08, magazine: 30, reload_time: 2.0, range: 250.0,
                 damage: 5.0, bullet_speed: 450.0, score_required: 5,
+                score_level_2: 12, score_level_3: 25,
                 ..WeaponSettings::empty()
             },
             grenade: WeaponSettings {
                 cooldown: 1.0, magazine: 3, reload_time: 2.5, range: 200.0,
                 damage: 50.0, bullet_speed: 300.0, score_required: 10,
+                score_level_2: 18, score_level_3: 30,
                 ..WeaponSettings::empty()
             },
             railgun: WeaponSettings {
                 cooldown: 0.8, magazine: 5, reload_time: 2.0, range: 800.0,
                 damage: 100.0, bullet_speed: 1500.0, score_required: 15,
+                score_level_2: 25, score_level_3: 40,
                 ..WeaponSettings::empty()
             },
             flamethrower: WeaponSettings {
                 cooldown: 0.04, magazine: 80, reload_time: 3.0, range: 120.0,
                 damage: 3.0, bullet_speed: 200.0, score_required: 8,
                 spread_angle: 0.3,
+                score_level_2: 15, score_level_3: 28,
                 ..WeaponSettings::empty()
             },
             shotgun: default_shotgun(),

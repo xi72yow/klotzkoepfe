@@ -100,7 +100,9 @@ pub fn player_weapon_switch(
             if available.len() <= 1 { continue; }
             let idx = available.iter().position(|w| *w == player.weapon).unwrap_or(0);
             let new_weapon = available[(idx + 1) % available.len()];
-            let ws = settings.weapon(new_weapon);
+            let lvl = settings.weapon_level(new_weapon, score.points);
+            let ws = settings.weapon_at_level(new_weapon, lvl);
+            let ws = &ws;
             player.weapon = new_weapon;
             player.ammo = ws.magazine;
             player.reloading = false;
@@ -117,10 +119,13 @@ pub fn player_shoot(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     settings: Res<GameSettings>,
+    score: Res<Score>,
     mut query: Query<(&mut Player, &Transform)>,
 ) {
     for (mut player, transform) in query.iter_mut() {
-        let ws = settings.weapon(player.weapon);
+        let lvl = settings.weapon_level(player.weapon, score.points);
+        let ws = settings.weapon_at_level(player.weapon, lvl);
+        let ws = &ws;
 
         if player.reloading {
             player.reload_timer.tick(time.delta());

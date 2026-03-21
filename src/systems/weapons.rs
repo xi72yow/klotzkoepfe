@@ -63,7 +63,7 @@ pub fn boomerang_system(
     mut score: ResMut<Score>,
     mut wave: ResMut<WaveState>,
     settings: Res<GameSettings>,
-    player_query: Query<(&Player, &Transform)>,
+    mut player_query: Query<(&mut Player, &Transform)>,
     mut boom_query: Query<(Entity, &mut Transform, &mut BoomerangProjectile), (Without<Player>, Without<Zombie>)>,
     mut zombie_query: Query<(Entity, &Transform, &mut Health), (With<Zombie>, Without<Player>, Without<BoomerangProjectile>)>,
 ) {
@@ -88,12 +88,24 @@ pub fn boomerang_system(
                 .find(|(p, _)| p.id == boom.owner_id)
                 .map(|(_, t)| t.translation.truncate());
 
+
             if let Some(target) = owner_pos {
                 let pos = transform.translation.truncate();
                 let diff = target - pos;
                 let dist = diff.length();
 
                 if dist < 15.0 {
+                    // Boomerang gefangen: Ammo zurueckgeben
+                    for (mut player, _) in player_query.iter_mut() {
+                        if player.id == boom.owner_id && player.weapon == WeaponType::Boomerang {
+                            let lvl = settings.weapon_level(WeaponType::Boomerang, score.points);
+                            let max_ammo = settings.weapon_at_level(WeaponType::Boomerang, lvl).magazine;
+                            if player.ammo < max_ammo {
+                                player.ammo += 1;
+                            }
+                            break;
+                        }
+                    }
                     commands.entity(entity).despawn();
                     continue;
                 }
@@ -289,6 +301,7 @@ pub fn drop_pickup(
     mut commands: Commands,
     time: Res<Time>,
     settings: Res<GameSettings>,
+    score: Res<Score>,
     mut player_query: Query<(&mut Player, &mut Health, &Transform)>,
     mut drop_query: Query<(Entity, &mut DropItem, &Transform), Without<Player>>,
 ) {
@@ -307,7 +320,8 @@ pub fn drop_pickup(
             if drop_pos.distance(player_pos) < 25.0 {
                 match drop.drop_type {
                     DropType::Ammo => {
-                        let ws = settings.weapon(player.weapon);
+                        let lvl = settings.weapon_level(player.weapon, score.points);
+                        let ws = settings.weapon_at_level(player.weapon, lvl);
                         player.ammo = ws.magazine;
                         player.reloading = false;
                         player.reload_elapsed = 0.0;

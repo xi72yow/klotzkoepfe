@@ -150,7 +150,8 @@ pub fn update_hud(
                 PlayerId::P1 => "P1",
                 PlayerId::P2 => "P2",
             };
-            **text = format!("{}: {}{}", prefix, player.weapon.name(), reload_str);
+            let lvl = settings.weapon_level(player.weapon, score.points);
+            **text = format!("{}: {}{}", prefix, player.weapon.name_at_level(lvl), reload_str);
         } else {
             **text = String::new();
         }
@@ -166,7 +167,8 @@ pub fn update_hud(
 
     for player in player_query.iter() {
         let weapon = player.weapon;
-        let magazine = settings.weapon(weapon).magazine;
+        let lvl = settings.weapon_level(weapon, score.points);
+        let magazine = settings.weapon_at_level(weapon, lvl).magazine;
         let (rect_w, rect_h, full_color) = ammo_style(weapon);
 
         // Berechne Layout: max Spalten pro Reihe passend zur AMMO_AREA_WIDTH
