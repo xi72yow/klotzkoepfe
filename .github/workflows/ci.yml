@@ -1,0 +1,185 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Create a release? (yes/no)"
+        required: true
+        default: "no"
+      version:
+        description: "Version tag (e.g. v0.1.0). Leave empty to use Cargo.toml version."
+        required: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-musl-
+
+      - name: Load uinput module
+        run: sudo modprobe uinput
+
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Run tests
+        run: sudo -E $(which cargo) test --target x86_64-unknown-linux-musl -- --test-threads=1
+
+  release:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
+    runs-on: ubuntu-latest
+    outputs:
+      skipped: ${{ steps.version.outputs.skip }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-musl-
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            BASE="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+            BASE="v${VERSION}"
+          fi
+
+          # Find latest revision for this version
+          git fetch --tags
+          LATEST_TAG=$(git tag -l "${BASE}-*" --sort=-v:refname | head -1)
+          if [ -n "$LATEST_TAG" ]; then
+            CURRENT_REV=$(echo "$LATEST_TAG" | sed "s/${BASE}-//")
+            NEW_REV=$((CURRENT_REV + 1))
+          else
+            if git rev-parse "${BASE}" >/dev/null 2>&1; then
+              NEW_REV=2
+            else
+              NEW_REV=1
+            fi
+          fi
+
+          TAG="${BASE}-${NEW_REV}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "revision=${NEW_REV}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build .deb
+        run: cargo deb --deb-revision "${{ steps.version.outputs.revision }}" --target x86_64-unknown-linux-musl
+
+      - name: Test .deb package
+        run: |
+          DEB=$(ls target/debian/*.deb)
+          echo "=== Package contents ==="
+          dpkg-deb -c "$DEB"
+
+          echo "=== Test install ==="
+          sudo dpkg -i "$DEB"
+
+          echo "=== Verify binary ==="
+          input-remapper-rs --version
+
+          echo "=== Verify systemd unit ==="
+          systemctl cat input-remapper-rs.service
+
+      - name: Prepare packages directory
+        run: |
+          mkdir -p packages
+          cp target/debian/*.deb packages/
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
+
+      - name: Update APT repository
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+          ./scripts/update-repo.sh
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: target/debian/*.deb
+          generate_release_notes: true
+
+      - name: Upload repo artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: repo/
+
+  deploy-pages:
+    needs: release
+    if: needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
