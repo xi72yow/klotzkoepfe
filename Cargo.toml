@@ -3,6 +3,11 @@ name = "klotzkoepfe"
 version = "0.1.0"
 edition = "2021"
 license-file = "LICENSE"
+description = "Klotzkoepfe"
+
+[package.metadata.deb]
+depends = ""
+section = "games"
 
 [dependencies]
 bevy = { version = "0.15" }

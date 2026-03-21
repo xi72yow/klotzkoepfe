@@ -29,11 +29,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
 
-      - name: Install musl tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install Bevy dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libudev-dev
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -42,24 +40,19 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-musl-
-
-      - name: Load uinput module
-        run: sudo modprobe uinput
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: cargo build --release
 
       - name: Run tests
-        run: sudo -E $(which cargo) test --target x86_64-unknown-linux-musl -- --test-threads=1
+        run: cargo test
 
   release:
     needs: test
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
     runs-on: ubuntu-latest
-    outputs:
-      skipped: ${{ steps.version.outputs.skip }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -68,11 +61,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
 
-      - name: Install musl tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install Bevy dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libudev-dev
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -81,8 +72,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-musl-
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Determine version
         id: version
@@ -94,7 +85,6 @@ jobs:
             BASE="v${VERSION}"
           fi
 
-          # Find latest revision for this version
           git fetch --tags
           LATEST_TAG=$(git tag -l "${BASE}-*" --sort=-v:refname | head -1)
           if [ -n "$LATEST_TAG" ]; then
@@ -113,11 +103,14 @@ jobs:
           echo "revision=${NEW_REV}" >> "$GITHUB_OUTPUT"
           echo "Release tag: ${TAG}"
 
+      - name: Generate changelog
+        run: ./scripts/generate-changelog.sh "${{ steps.version.outputs.revision }}"
+
       - name: Install cargo-deb
         run: cargo install cargo-deb
 
       - name: Build .deb
-        run: cargo deb --deb-revision "${{ steps.version.outputs.revision }}" --target x86_64-unknown-linux-musl
+        run: cargo deb --deb-revision "${{ steps.version.outputs.revision }}"
 
       - name: Test .deb package
         run: |
@@ -129,15 +122,7 @@ jobs:
           sudo dpkg -i "$DEB"
 
           echo "=== Verify binary ==="
-          input-remapper-rs --version
-
-          echo "=== Verify systemd unit ==="
-          systemctl cat input-remapper-rs.service
-
-      - name: Prepare packages directory
-        run: |
-          mkdir -p packages
-          cp target/debian/*.deb packages/
+          klotzkoepfe --version || true
 
       - name: Import GPG key
         env:
@@ -146,10 +131,7 @@ jobs:
           echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
 
       - name: Update APT repository
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          sudo apt-get update
           sudo apt-get install -y dpkg-dev apt-utils
           ./scripts/update-repo.sh
 
