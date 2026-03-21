@@ -201,6 +201,42 @@ pub struct Player {
 pub struct WeaponSprite;
 
 #[derive(Component)]
+pub struct PlayerHead;
+
+#[derive(Component)]
+pub struct PlayerBody;
+
+#[derive(Component)]
+pub struct PlayerLeg {
+    pub side: f32, // -1.0 links, 1.0 rechts
+}
+
+#[derive(Component)]
+pub struct PlayerArm {
+    pub side: f32, // -1.0 links, 1.0 rechts
+    pub has_weapon: bool,
+}
+
+#[derive(Component)]
+pub struct PlayerEye {
+    pub side: f32, // -1.0 links, 1.0 rechts
+}
+
+#[derive(Component)]
+pub struct ZombieLeg {
+    pub side: f32,
+}
+
+#[derive(Component)]
+pub struct ZombieArm {
+    pub side: f32,
+}
+
+/// Zombie-Variante (0, 1, 2) fuer verschiedene Looks
+#[derive(Component, Clone, Copy)]
+pub struct ZombieVariant(pub u8);
+
+#[derive(Component)]
 pub struct Zombie {
     pub speed: f32,
     pub damage_cooldown: Timer,

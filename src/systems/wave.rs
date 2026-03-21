@@ -52,38 +52,5 @@ fn respawn_player(commands: &mut Commands, settings: &GameSettings, id: PlayerId
         PlayerId::P1 => (-80.0, PLAYER_COLOR_P1, Vec2::X),
         PlayerId::P2 => (80.0, PLAYER_COLOR_P2, Vec2::NEG_X),
     };
-
-    let ws = settings.weapon(WeaponType::Pistol);
-    let weapon = WeaponType::Pistol;
-
-    commands
-        .spawn((
-            Sprite { color, custom_size: Some(PLAYER_SIZE), ..default() },
-            Transform::from_xyz(x, 0.0, 10.0),
-            Player {
-                id, facing, weapon,
-                ammo: ws.magazine,
-                shoot_cooldown: Timer::from_seconds(ws.cooldown, TimerMode::Once),
-                reload_timer: Timer::from_seconds(ws.reload_time, TimerMode::Once),
-                reloading: false, reload_elapsed: 0.0,
-            },
-            Health { current: settings.player_hp, max: settings.player_hp },
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Sprite { color: Color::srgb(0.3, 0.0, 0.0), custom_size: Some(Vec2::new(HP_BAR_WIDTH, HP_BAR_HEIGHT)), ..default() },
-                Transform::from_xyz(0.0, HP_BAR_OFFSET_Y, 1.0),
-                PlayerHpBarBg,
-            ));
-            parent.spawn((
-                Sprite { color: Color::srgb(0.0, 0.8, 0.0), custom_size: Some(Vec2::new(HP_BAR_WIDTH, HP_BAR_HEIGHT)), ..default() },
-                Transform::from_xyz(0.0, HP_BAR_OFFSET_Y, 2.0),
-                PlayerHpBar,
-            ));
-            parent.spawn((
-                Sprite { color: weapon.sprite_color(), custom_size: Some(weapon.sprite_size()), ..default() },
-                Transform::from_xyz(PLAYER_SIZE.x / 2.0 + weapon.sprite_size().x / 2.0, 0.0, 0.5),
-                WeaponSprite,
-            ));
-        });
+    crate::systems::player::spawn_one_player_pub(commands, settings, id, x, color, facing);
 }

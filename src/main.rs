@@ -92,6 +92,8 @@ fn main() {
                 weapons::weapon_unlock_check,
                 weapons::weapon_unlock_fade,
                 weapons::drop_pickup,
+                player::player_walk_animation,
+                zombie::zombie_animation,
             )
                 .run_if(in_state(GameState::Playing)),
         )
