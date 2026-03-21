@@ -23,17 +23,21 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: debian:12
     steps:
+      - name: Install base tools
+        run: apt-get update && apt-get install -y git curl build-essential pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev dpkg-dev apt-utils
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Bevy dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -42,8 +46,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: debian12-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: debian12-cargo-
 
       - name: Build
         run: cargo build --release
@@ -102,7 +106,7 @@ jobs:
           dpkg-deb -c "$DEB"
 
           echo "=== Test install ==="
-          sudo dpkg -i "$DEB"
+          dpkg -i "$DEB"
 
           echo "=== Verify binary ==="
           klotzkoepfe --version || true
@@ -116,9 +120,7 @@ jobs:
 
       - name: Update APT repository
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
-        run: |
-          sudo apt-get install -y dpkg-dev apt-utils
-          ./scripts/update-repo.sh
+        run: ./scripts/update-repo.sh
 
       - name: Create tag
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
