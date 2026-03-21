@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PlayerId {
@@ -193,9 +194,21 @@ pub struct Player {
     pub reload_timer: Timer,
     pub reloading: bool,
     pub reload_elapsed: f32,
+    pub magazines: HashMap<WeaponType, u32>,
 }
 
 
+
+#[derive(Component)]
+pub struct Knockback {
+    pub velocity: Vec2,
+    pub duration: Timer,
+}
+
+#[derive(Component)]
+pub struct RegenCooldown {
+    pub timer: Timer,
+}
 
 #[derive(Component)]
 pub struct WeaponSprite;
@@ -246,6 +259,33 @@ pub struct Gib {
 }
 
 #[derive(Component)]
+pub struct BigZombie;
+
+#[derive(Component)]
+pub struct Burning {
+    pub damage_per_second: f32,
+    pub timer: Timer,
+    pub tick_timer: Timer,
+}
+
+#[derive(Component)]
+pub struct Stunned {
+    pub timer: Timer,
+}
+
+#[derive(Component)]
+pub struct FreezeStacks {
+    pub hits: u32,
+    pub frozen: bool,
+    pub frozen_timer: Timer,
+}
+
+#[derive(Component)]
+pub struct LightningArc {
+    pub lifetime: Timer,
+}
+
+#[derive(Component)]
 pub struct Zombie {
     pub speed: f32,
     pub damage_cooldown: Timer,
@@ -262,6 +302,9 @@ pub struct Bullet {
 
 #[derive(Component)]
 pub struct BulletOwner(pub PlayerId);
+
+#[derive(Component)]
+pub struct FlameBullet;
 
 #[derive(Component)]
 pub struct FreezeBullet {
@@ -381,13 +424,28 @@ pub struct WeaponUnlockIcon {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DropType {
-    Ammo,
-    Health,
+pub enum CrateType {
+    Random,
+    Base,
 }
 
 #[derive(Component)]
-pub struct DropItem {
-    pub drop_type: DropType,
-    pub lifetime: Timer,
+pub struct LootCrate {
+    pub crate_type: CrateType,
+    pub despawn_timer: Timer,
+    pub lights: u8,
+    pub light_timer: Timer,
 }
+
+#[derive(Component)]
+pub struct CrateLight {
+    pub index: u8,
+}
+
+#[derive(Component)]
+pub struct BaseCrateSpawner {
+    pub position: Vec2,
+    pub respawn_timer: Timer,
+    pub active: bool,
+}
+

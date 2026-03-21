@@ -26,6 +26,7 @@ fn main() {
         .init_resource::<Score>()
         .init_resource::<ComboMeter>()
         .init_resource::<debug_ui::SettingsUiState>()
+        .init_resource::<unlock_ui::UnlockUiState>()
         .init_resource::<weapons::UnlockedWeapons>()
         .insert_resource(GameSettings::load())
         // Erster Spielstart
@@ -36,6 +37,7 @@ fn main() {
                 room::setup_room,
                 player::spawn_players,
                 hud::setup_hud,
+                crates::setup_base_crates,
             ),
         )
         // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
@@ -43,8 +45,8 @@ fn main() {
             OnEnter(GameState::Restarting),
             (hud::restart_despawn, hud::restart_spawn).chain(),
         )
-        // Pause-Toggle laeuft immer
-        .add_systems(Update, hud::pause_toggle)
+        // Pause-Toggle und Fullscreen laufen immer
+        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle))
         // Settings-UI nur im Pause-State
         .add_systems(
             Update,
@@ -55,10 +57,18 @@ fn main() {
                 .run_if(in_state(GameState::Paused)),
         )
         .add_systems(OnExit(GameState::Paused), debug_ui::cleanup_settings_panel)
+        // Unlock-Screen
+        .add_systems(OnEnter(GameState::UnlockScreen), unlock_ui::setup_unlock_screen)
+        .add_systems(
+            Update,
+            unlock_ui::unlock_screen_input.run_if(in_state(GameState::UnlockScreen)),
+        )
+        .add_systems(OnExit(GameState::UnlockScreen), unlock_ui::cleanup_unlock_screen)
         // Gameplay-Systeme (aufgeteilt wegen Bevy max 20 pro Tuple)
         .add_systems(
             Update,
             (
+                player::player2_join,
                 player::player_movement,
                 player::player_weapon_switch,
                 player::player_shoot,
@@ -78,23 +88,37 @@ fn main() {
                 blood::blood_update,
                 wave::wave_system,
                 hud::combo_system,
-                hud::update_hud,
             )
                 .run_if(in_state(GameState::Playing)),
         )
         .add_systems(
             Update,
             (
+                hud::update_hud,
                 weapons::mine_system,
                 weapons::boomerang_system,
                 weapons::spinning_system,
                 weapons::zombie_freeze_update,
                 weapons::weapon_unlock_check,
                 weapons::weapon_unlock_fade,
-                weapons::drop_pickup,
                 player::player_walk_animation,
+                player::player_regeneration,
+                collision::explosion_player_collision,
+                collision::apply_knockback,
+                crates::crate_system,
+                crates::base_crate_respawn,
                 zombie::zombie_animation,
                 blood::gib_update,
+            )
+                .run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
+            (
+                zombie::burning_system,
+                zombie::stun_system,
+                zombie::freeze_stack_system,
+                zombie::lightning_arc_system,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -109,4 +133,24 @@ fn main() {
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+fn fullscreen_toggle(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut settings: ResMut<GameSettings>,
+    mut windows: Query<&mut Window>,
+) {
+    if keyboard.just_pressed(KeyCode::F11) {
+        settings.fullscreen = !settings.fullscreen;
+    }
+    if let Ok(mut window) = windows.single_mut() {
+        let target_mode = if settings.fullscreen {
+            bevy::window::WindowMode::BorderlessFullscreen(bevy::window::MonitorSelection::Current)
+        } else {
+            bevy::window::WindowMode::Windowed
+        };
+        if window.mode != target_mode {
+            window.mode = target_mode;
+        }
+    }
 }

@@ -7,7 +7,9 @@ use crate::resources::*;
 
 pub fn spawn_players(mut commands: Commands, settings: Res<GameSettings>) {
     spawn_one_player(&mut commands, &settings, PlayerId::P1, -80.0, PLAYER_COLOR_P1, Vec2::X);
-    spawn_one_player(&mut commands, &settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
+    if settings.player_count >= 2 {
+        spawn_one_player(&mut commands, &settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
+    }
 }
 
 // Spieler-Proportionen (Boxhead-Stil)
@@ -31,6 +33,14 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
     let weapon = WeaponType::Pistol;
     let weapon_arm_side: f32 = if rand::Rng::random_bool(&mut rand::rng(), 0.5) { 1.0 } else { -1.0 };
 
+    // Initialize magazines for all weapons
+    let mut magazines = std::collections::HashMap::new();
+    for w in WeaponType::all() {
+        let wset = settings.weapon(*w);
+        let max_mags = if wset.max_magazines > 0 { wset.max_magazines } else { 999 };
+        magazines.insert(*w, max_mags);
+    }
+
     commands
         .spawn((
             // Unsichtbarer Root fuer Collision
@@ -42,8 +52,10 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 shoot_cooldown: Timer::from_seconds(ws.cooldown, TimerMode::Once),
                 reload_timer: Timer::from_seconds(ws.reload_time, TimerMode::Once),
                 reloading: false, reload_elapsed: 0.0,
+                magazines,
             },
             Health { current: settings.player_hp, max: settings.player_hp },
+            RegenCooldown { timer: Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once) },
         ))
         .with_children(|parent| {
             // Kopf (grosser Block, oben)
@@ -122,6 +134,25 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
         });
 }
 
+/// Auto-join P2 when arrow keys are pressed and P2 doesn't exist yet
+pub fn player2_join(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    mut settings: ResMut<GameSettings>,
+    player_query: Query<&Player>,
+) {
+    // Check if P2 already exists
+    if player_query.iter().any(|p| p.id == PlayerId::P2) {
+        return;
+    }
+
+    // Check if any P2 key is pressed
+    if keyboard.any_just_pressed([KeyCode::ArrowUp, KeyCode::ArrowDown, KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::Enter]) {
+        settings.player_count = 2;
+        spawn_one_player(&mut commands, &settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
+    }
+}
+
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -149,7 +180,13 @@ pub fn player_movement(
         }
         if direction != Vec2::ZERO {
             direction = direction.normalize();
-            player.facing = direction;
+            // Keep last horizontal facing when moving purely vertically
+            if direction.x.abs() < 0.01 {
+                player.facing.y = direction.y;
+                player.facing = player.facing.normalize();
+            } else {
+                player.facing = direction;
+            }
         }
         transform.translation.x += direction.x * settings.player_speed * time.delta_secs();
         transform.translation.y += direction.y * settings.player_speed * time.delta_secs();
@@ -247,9 +284,13 @@ pub fn player_weapon_switch(
             PlayerId::P2 => keyboard.just_pressed(KeyCode::ShiftRight),
         };
         if switch {
-            let available: Vec<WeaponType> = WeaponType::all().iter().copied()
-                .filter(|w| settings.weapon(*w).score_required <= score.points)
-                .collect();
+            let available: Vec<WeaponType> = if settings.gamemaster_level > 0 {
+                WeaponType::all().to_vec()
+            } else {
+                WeaponType::all().iter().copied()
+                    .filter(|w| settings.weapon(*w).score_required <= score.points)
+                    .collect()
+            };
             if available.len() <= 1 { continue; }
             let idx = available.iter().position(|w| *w == player.weapon).unwrap_or(0);
             let new_weapon = available[(idx + 1) % available.len()];
@@ -351,6 +392,7 @@ pub fn player_shoot(
                         },
                         Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(fa)),
                         Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.6..1.0), pierce_remaining: 1 },
+                        FlameBullet,
                         Velocity(fd * ws.bullet_speed * rng.random_range(0.7..1.3)),
                         BulletOwner(player.id),
                     ));
@@ -412,10 +454,11 @@ pub fn player_shoot(
                     ));
                 }
                 WeaponType::Buzzsaw => {
+                    let pierce = if ws.pierce_count > 0 { ws.pierce_count } else { 999 };
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
                         Transform::from_translation(pos),
-                        Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: 999 },
+                        Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: pierce },
                         Velocity(dir * ws.bullet_speed),
                         Spinning { speed: 12.0 },
                         BulletOwner(player.id),
@@ -436,21 +479,48 @@ pub fn player_shoot(
                 }
                 // Laser, Railgun, Pistol, Uzi - standard bullets
                 _ => {
+                    let final_angle = if ws.spread_angle > 0.0 {
+                        angle + rng.random_range(-ws.spread_angle / 2.0..ws.spread_angle / 2.0)
+                    } else {
+                        angle
+                    };
+                    let final_dir = Vec2::new(final_angle.cos(), final_angle.sin());
+                    let pierce = if ws.pierce_count > 0 { ws.pierce_count } else { 1 };
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
-                        Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: weapon.piercing() },
-                        Velocity(dir * ws.bullet_speed),
+                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(final_angle)),
+                        Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: pierce },
+                        Velocity(final_dir * ws.bullet_speed),
                         BulletOwner(player.id),
                     ));
                 }
             }
 
             if player.ammo == 0 {
-                player.reloading = true;
-                player.reload_elapsed = 0.0;
-                player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
+                let current_weapon = player.weapon;
+                let mags = player.magazines.entry(current_weapon).or_insert(0);
+                if *mags > 0 {
+                    *mags -= 1;
+                    player.reloading = true;
+                    player.reload_elapsed = 0.0;
+                    player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
+                }
+                // If no magazines left, player can't reload (must pick up ammo)
             }
+        }
+    }
+}
+
+pub fn player_regeneration(
+    time: Res<Time>,
+    settings: Res<GameSettings>,
+    mut query: Query<(&mut Health, &mut RegenCooldown), With<Player>>,
+) {
+    if settings.player_regen_rate <= 0.0 { return; }
+    for (mut health, mut regen) in query.iter_mut() {
+        regen.timer.tick(time.delta());
+        if regen.timer.is_finished() && health.current < health.max {
+            health.current = (health.current + settings.player_regen_rate * time.delta_secs()).min(health.max);
         }
     }
 }

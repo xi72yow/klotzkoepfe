@@ -97,18 +97,26 @@ pub fn combo_system(
     mut combo: ResMut<ComboMeter>,
     mut score: ResMut<Score>,
 ) {
+    // Combo bar visual (no score changes, multiplier handles scoring now)
     if combo.position >= 1.0 {
-        score.points += 1;
         combo.position = 0.5;
     }
 
     combo.position -= settings.combo_drain_speed * time.delta_secs();
 
     if combo.position <= 0.0 {
-        if score.points > 0 {
-            score.points -= 1;
-        }
         combo.position = 0.5;
+    }
+
+    // Multiplier decay
+    combo.streak_timer.tick(time.delta());
+    if combo.streak_timer.is_finished() && combo.multiplier_index > 0 {
+        // Higher tiers decay faster
+        let decay_speed = settings.multiplier_decay_rate * (1.0 + combo.multiplier_index as f32 * 0.3);
+        if time.elapsed_secs() % (1.0 / decay_speed.max(0.01)) < time.delta_secs() {
+            combo.multiplier_index = combo.multiplier_index.saturating_sub(1);
+            combo.kill_streak = 0;
+        }
     }
 }
 
@@ -136,7 +144,12 @@ pub fn update_hud(
     }
 
     if let Ok(mut text) = score_text.single_mut() {
-        **text = format!("Score: {}", score.points);
+        let mult = combo.current_multiplier();
+        if mult > 1 {
+            **text = format!("Score: {} | x{}", score.points, mult);
+        } else {
+            **text = format!("Score: {}", score.points);
+        }
     }
     if let Ok(mut text) = wave_text.single_mut() {
         **text = format!("Wave: {}", wave.current_wave);
@@ -151,7 +164,15 @@ pub fn update_hud(
                 PlayerId::P2 => "P2",
             };
             let lvl = settings.weapon_level(player.weapon, score.points);
-            **text = format!("{}: {}{}", prefix, player.weapon.name_at_level(lvl), reload_str);
+            let ws = settings.weapon_at_level(player.weapon, lvl);
+            let max_mags = if ws.max_magazines > 0 && ws.max_magazines < 999 { ws.max_magazines } else { 0 };
+            let mag_str = if max_mags > 0 {
+                let remaining = player.magazines.get(&player.weapon).copied().unwrap_or(max_mags);
+                format!(" {}x", remaining)
+            } else {
+                String::new()
+            };
+            **text = format!("{}: {}{}{}", prefix, player.weapon.name_at_level(lvl), mag_str, reload_str);
         } else {
             **text = String::new();
         }
@@ -284,6 +305,14 @@ pub fn pause_toggle(
         match state.get() {
             GameState::Playing => next_state.set(GameState::Paused),
             GameState::Paused => next_state.set(GameState::Playing),
+            GameState::UnlockScreen => next_state.set(GameState::Playing),
+            _ => {}
+        }
+    }
+    if keyboard.just_pressed(KeyCode::KeyM) {
+        match state.get() {
+            GameState::Playing => next_state.set(GameState::UnlockScreen),
+            GameState::UnlockScreen => next_state.set(GameState::Playing),
             _ => {}
         }
     }

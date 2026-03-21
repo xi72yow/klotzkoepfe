@@ -129,12 +129,11 @@ pub fn boomerang_system(
 
                 if health.current <= 0.0 {
                     commands.entity(zombie_entity).try_despawn();
-                    score.kills += 1;
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
-                    combo.position += settings.combo_kill_boost;
+                    crate::systems::collision::register_kill(&mut score, &mut combo, &settings);
                     spawn_blood(&mut commands, zombie_pos);
-                    if rand::rng().random_ratio(1, 12) {
-                        spawn_drop(&mut commands, zombie_pos);
+                    if rand::rng().random::<f32>() < settings.crate_spawn_chance {
+                        crate::systems::crates::spawn_random_crate(&mut commands, zombie_pos, settings.crate_despawn_time);
                     }
                 }
             }
@@ -256,83 +255,3 @@ pub fn weapon_unlock_fade(
     }
 }
 
-// --- Drop System ---
-pub fn drop_spawn_on_kill(
-    mut commands: Commands,
-    score: Res<Score>,
-    settings: Res<GameSettings>,
-) {
-    // Wird von collision aufgerufen via Event-artig - wir nutzen stattdessen
-    // eine Zufalls-Pruefung in collision direkt
-    // Dieses System ist ein Platzhalter - der eigentliche Spawn passiert in collision
-}
-
-pub fn spawn_drop(commands: &mut Commands, position: Vec2) {
-    use rand::Rng;
-    let mut rng = rand::rng();
-
-    let drop_type = if rng.random_bool(0.6) {
-        DropType::Ammo
-    } else {
-        DropType::Health
-    };
-
-    let (color, label) = match drop_type {
-        DropType::Ammo => (Color::srgb(0.2, 0.8, 1.0), "A"),
-        DropType::Health => (Color::srgb(0.2, 1.0, 0.3), "+"),
-    };
-
-    // Box
-    commands.spawn((
-        Sprite {
-            color,
-            custom_size: Some(Vec2::new(14.0, 14.0)),
-            ..default()
-        },
-        Transform::from_xyz(position.x, position.y, 8.0),
-        DropItem {
-            drop_type,
-            lifetime: Timer::from_seconds(15.0, TimerMode::Once),
-        },
-    ));
-}
-
-pub fn drop_pickup(
-    mut commands: Commands,
-    time: Res<Time>,
-    settings: Res<GameSettings>,
-    score: Res<Score>,
-    mut player_query: Query<(&mut Player, &mut Health, &Transform)>,
-    mut drop_query: Query<(Entity, &mut DropItem, &Transform), Without<Player>>,
-) {
-    for (drop_entity, mut drop, drop_transform) in drop_query.iter_mut() {
-        drop.lifetime.tick(time.delta());
-        if drop.lifetime.is_finished() {
-            commands.entity(drop_entity).despawn();
-            continue;
-        }
-
-        let drop_pos = drop_transform.translation.truncate();
-
-        for (mut player, mut health, player_transform) in player_query.iter_mut() {
-            let player_pos = player_transform.translation.truncate();
-
-            if drop_pos.distance(player_pos) < 25.0 {
-                match drop.drop_type {
-                    DropType::Ammo => {
-                        let lvl = settings.weapon_level(player.weapon, score.points);
-                        let ws = settings.weapon_at_level(player.weapon, lvl);
-                        player.ammo = ws.magazine;
-                        player.reloading = false;
-                        player.reload_elapsed = 0.0;
-                    }
-                    DropType::Health => {
-                        health.current = (health.current + 25.0).min(health.max);
-                    }
-                }
-                commands.entity(drop_entity).despawn();
-                break;
-            }
-        }
-    }
-}

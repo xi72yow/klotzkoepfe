@@ -32,37 +32,47 @@ pub fn zombie_spawn(
         };
 
         let variant = rng.random_range(0u8..3);
-        spawn_zombie(&mut commands, pos, &settings, variant);
+        let is_big = wave.current_wave >= settings.big_zombie_start_wave
+            && rng.random::<f32>() < settings.big_zombie_spawn_chance;
+        spawn_zombie(&mut commands, pos, &settings, variant, is_big);
 
         wave.zombies_to_spawn -= 1;
         wave.zombies_alive += 1;
     }
 }
 
-fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, variant: u8) {
+fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, variant: u8, is_big: bool) {
     // 3 Zombie-Designs
+    let d = if is_big { 0.7 } else { 1.0 };
     let (head_color, body_color, arm_color, leg_color) = match variant {
         // Typ 0: Klassisch gruen (frischer Zombie)
         0 => (
-            Color::srgb(0.4, 0.6, 0.3),
-            Color::srgb(0.3, 0.5, 0.25),
-            Color::srgb(0.45, 0.55, 0.3),
-            Color::srgb(0.3, 0.4, 0.2),
+            Color::srgb(0.4 * d, 0.6 * d, 0.3 * d),
+            Color::srgb(0.3 * d, 0.5 * d, 0.25 * d),
+            Color::srgb(0.45 * d, 0.55 * d, 0.3 * d),
+            Color::srgb(0.3 * d, 0.4 * d, 0.2 * d),
         ),
         // Typ 1: Grau/blau (verwester Zombie)
         1 => (
-            Color::srgb(0.5, 0.5, 0.6),
-            Color::srgb(0.35, 0.35, 0.45),
-            Color::srgb(0.45, 0.45, 0.55),
-            Color::srgb(0.3, 0.3, 0.4),
+            Color::srgb(0.5 * d, 0.5 * d, 0.6 * d),
+            Color::srgb(0.35 * d, 0.35 * d, 0.45 * d),
+            Color::srgb(0.45 * d, 0.45 * d, 0.55 * d),
+            Color::srgb(0.3 * d, 0.3 * d, 0.4 * d),
         ),
         // Typ 2: Rot/braun (blutiger Zombie)
         _ => (
-            Color::srgb(0.6, 0.3, 0.25),
-            Color::srgb(0.5, 0.2, 0.15),
-            Color::srgb(0.55, 0.25, 0.2),
-            Color::srgb(0.4, 0.2, 0.15),
+            Color::srgb(0.6 * d, 0.3 * d, 0.25 * d),
+            Color::srgb(0.5 * d, 0.2 * d, 0.15 * d),
+            Color::srgb(0.55 * d, 0.25 * d, 0.2 * d),
+            Color::srgb(0.4 * d, 0.2 * d, 0.15 * d),
         ),
+    };
+
+    let scale = if is_big { settings.big_zombie_scale } else { 1.0 };
+    let (hp, speed, damage) = if is_big {
+        (settings.big_zombie_hp, settings.big_zombie_speed, settings.big_zombie_damage)
+    } else {
+        (settings.zombie_hp, settings.zombie_speed, settings.zombie_damage)
     };
 
     // Gleiche Proportionen wie Spieler
@@ -70,24 +80,28 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
     let body_size = Vec2::new(14.0, 12.0);
     let leg_size = Vec2::new(5.0, 8.0);
     let arm_size = Vec2::new(5.0, 12.0);
+    let collision_size = PLAYER_SIZE * scale;
 
-    commands
+    let mut entity_cmds = commands
         .spawn((
-            // Unsichtbarer Root (gleiche Groesse wie Spieler)
-            Sprite { color: Color::NONE, custom_size: Some(PLAYER_SIZE), ..default() },
-            Transform::from_xyz(pos.x, pos.y, 9.0),
+            // Unsichtbarer Root
+            Sprite { color: Color::NONE, custom_size: Some(collision_size), ..default() },
+            Transform::from_xyz(pos.x, pos.y, 9.0).with_scale(Vec3::splat(scale)),
             Zombie {
-                speed: settings.zombie_speed,
+                speed,
                 damage_cooldown: Timer::from_seconds(settings.zombie_damage_cooldown, TimerMode::Once),
                 speed_modifier: 1.0,
                 freeze_timer: Timer::from_seconds(0.0, TimerMode::Once),
             },
-            Health {
-                current: settings.zombie_hp,
-                max: settings.zombie_hp,
-            },
+            Health { current: hp, max: hp },
             ZombieVariant(variant),
-        ))
+        ));
+
+    if is_big {
+        entity_cmds.insert(BigZombie);
+    }
+
+    entity_cmds
         .with_children(|parent| {
             // Kopf
             parent.spawn((
@@ -150,6 +164,8 @@ pub fn zombie_ai(
     }
 
     for (zombie, mut transform) in zombie_query.iter_mut() {
+        // Skip if speed is 0 (stunned/frozen)
+        if zombie.speed_modifier <= 0.0 { continue; }
         let zombie_pos = transform.translation.truncate();
 
         // Naechsten Spieler finden
@@ -223,6 +239,113 @@ pub fn zombie_animation(
                 let angle = facing.y.atan2(facing.x);
                 transform.rotation = Quat::from_rotation_z(angle + wobble);
             }
+        }
+    }
+}
+
+pub fn burning_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    settings: Res<GameSettings>,
+    mut score: ResMut<Score>,
+    mut wave: ResMut<WaveState>,
+    mut combo: ResMut<ComboMeter>,
+    mut query: Query<(Entity, &Transform, &mut Health, &mut Burning)>,
+    zombie_positions: Query<(Entity, &Transform), With<Zombie>>,
+) {
+    // Fire jumping
+    let all_pos: Vec<(Entity, Vec2)> = zombie_positions.iter()
+        .map(|(e, t)| (e, t.translation.truncate()))
+        .collect();
+
+    let mut new_burns: Vec<(Entity, f32)> = Vec::new();
+
+    for (entity, transform, mut health, mut burning) in query.iter_mut() {
+        burning.timer.tick(time.delta());
+        burning.tick_timer.tick(time.delta());
+
+        if burning.tick_timer.just_finished() {
+            health.current -= burning.damage_per_second * 0.25; // Tick every 0.25s
+            crate::systems::blood::spawn_blood(&mut commands, transform.translation.truncate());
+
+            // Fire jump to nearby zombies
+            let pos = transform.translation.truncate();
+            for (other_e, other_pos) in &all_pos {
+                if *other_e != entity && pos.distance(*other_pos) < 50.0 {
+                    new_burns.push((*other_e, burning.damage_per_second * 0.5));
+                }
+            }
+        }
+
+        if health.current <= 0.0 {
+            commands.entity(entity).try_despawn();
+            wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
+            crate::systems::collision::register_kill(&mut score, &mut combo, &settings);
+        }
+
+        if burning.timer.is_finished() {
+            commands.entity(entity).remove::<Burning>();
+        }
+    }
+
+    // Apply fire jumping (deferred)
+    for (e, dmg) in new_burns {
+        commands.entity(e).try_insert(Burning {
+            damage_per_second: dmg,
+            timer: Timer::from_seconds(2.0, TimerMode::Once),
+            tick_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+        });
+    }
+}
+
+pub fn stun_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Stunned, &mut Zombie)>,
+) {
+    for (entity, mut stunned, mut zombie) in query.iter_mut() {
+        stunned.timer.tick(time.delta());
+        zombie.speed_modifier = 0.0;
+        if stunned.timer.is_finished() {
+            if zombie.freeze_timer.is_finished() {
+                zombie.speed_modifier = 1.0;
+            }
+            commands.entity(entity).remove::<Stunned>();
+        }
+    }
+}
+
+pub fn freeze_stack_system(
+    time: Res<Time>,
+    mut query: Query<(&mut FreezeStacks, &mut Zombie, &mut Sprite)>,
+) {
+    for (mut stacks, mut zombie, mut sprite) in query.iter_mut() {
+        if stacks.frozen {
+            stacks.frozen_timer.tick(time.delta());
+            zombie.speed_modifier = 0.0;
+            // Tint blue
+            sprite.color = Color::srgb(0.5, 0.8, 1.0);
+            if stacks.frozen_timer.is_finished() {
+                stacks.frozen = false;
+                stacks.hits = 0;
+                zombie.speed_modifier = 1.0;
+                sprite.color = Color::NONE; // Root sprite is invisible
+            }
+        }
+    }
+}
+
+pub fn lightning_arc_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut LightningArc, &mut Sprite)>,
+) {
+    for (entity, mut arc, mut sprite) in query.iter_mut() {
+        arc.lifetime.tick(time.delta());
+        let alpha = 1.0 - arc.lifetime.fraction();
+        sprite.color = Color::srgba(0.6, 0.7, 1.0, alpha);
+        if arc.lifetime.is_finished() {
+            commands.entity(entity).despawn();
         }
     }
 }

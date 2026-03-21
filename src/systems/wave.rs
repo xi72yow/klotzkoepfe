@@ -41,13 +41,33 @@ pub fn wave_system(
 
 fn start_wave(settings: &GameSettings, wave: &mut WaveState) {
     wave.current_wave += 1;
-    wave.zombies_to_spawn =
-        settings.wave_base_zombies + (wave.current_wave - 1) * settings.wave_zombie_increment;
-    wave.spawn_timer = Timer::from_seconds(settings.spawn_interval, TimerMode::Repeating);
+
+    // Calculate zombie count
+    if wave.current_wave > settings.percent_mode_after_wave && wave.last_wave_zombies > 0 {
+        // Percent mode: grow exponentially
+        let increase = (wave.last_wave_zombies as f32 * settings.zombie_increase_percent / 100.0).ceil() as u32;
+        wave.zombies_to_spawn = wave.last_wave_zombies + increase.max(1);
+    } else {
+        // Linear mode
+        wave.zombies_to_spawn =
+            settings.wave_base_zombies + (wave.current_wave - 1) * settings.wave_zombie_increment;
+    }
+    wave.last_wave_zombies = wave.zombies_to_spawn;
+
+    // Spawn interval decreases per wave
+    let interval = (settings.spawn_interval - settings.spawn_rate_decrease_per_wave * (wave.current_wave - 1) as f32)
+        .max(settings.min_spawn_interval);
+    wave.spawn_timer = Timer::from_seconds(interval, TimerMode::Repeating);
     wave.active = true;
 }
 
 fn respawn_player(commands: &mut Commands, settings: &GameSettings, id: PlayerId) {
+    // Only respawn players within player_count
+    match id {
+        PlayerId::P1 => {},
+        PlayerId::P2 if settings.player_count < 2 => return,
+        PlayerId::P2 => {},
+    }
     let (x, color, facing) = match id {
         PlayerId::P1 => (-80.0, PLAYER_COLOR_P1, Vec2::X),
         PlayerId::P2 => (80.0, PLAYER_COLOR_P2, Vec2::NEG_X),
