@@ -21,37 +21,7 @@ permissions:
   id-token: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Bevy dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libudev-dev
-
-      - name: Cache cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Build
-        run: cargo build --release
-
-      - name: Run tests
-        run: cargo test
-
-  release:
-    needs: test
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -75,7 +45,16 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Build
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test
+
+      # --- Release steps (only on workflow_dispatch) ---
+
       - name: Determine version
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -104,15 +83,19 @@ jobs:
           echo "Release tag: ${TAG}"
 
       - name: Generate changelog
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: ./scripts/generate-changelog.sh "${{ steps.version.outputs.revision }}"
 
       - name: Install cargo-deb
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: cargo install cargo-deb
 
       - name: Build .deb
-        run: cargo deb --deb-revision "${{ steps.version.outputs.revision }}"
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
+        run: cargo deb --no-build --deb-revision "${{ steps.version.outputs.revision }}"
 
       - name: Test .deb package
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: |
           DEB=$(ls target/debian/*.deb)
           echo "=== Package contents ==="
@@ -125,17 +108,20 @@ jobs:
           klotzkoepfe --version || true
 
       - name: Import GPG key
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
 
       - name: Update APT repository
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: |
           sudo apt-get install -y dpkg-dev apt-utils
           ./scripts/update-repo.sh
 
       - name: Create tag
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -143,6 +129,7 @@ jobs:
           git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Create Release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -150,13 +137,14 @@ jobs:
           generate_release_notes: true
 
       - name: Upload repo artifact
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         uses: actions/upload-pages-artifact@v4
         with:
           path: repo/
 
   deploy-pages:
-    needs: release
-    if: needs.release.result == 'success'
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
