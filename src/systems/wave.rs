@@ -12,7 +12,7 @@ pub fn wave_system(
 ) {
     if wave.pausing {
         wave.pause_timer.tick(time.delta());
-        if wave.pause_timer.finished() {
+        if wave.pause_timer.is_finished() {
             wave.pausing = false;
 
             // Tote Spieler wiederbeleben

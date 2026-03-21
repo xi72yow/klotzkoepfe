@@ -18,17 +18,17 @@ pub fn zombie_spawn(
     wave.spawn_timer.tick(time.delta());
 
     if wave.spawn_timer.just_finished() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.x;
         let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.y;
 
-        let side = rng.gen_range(0..4);
+        let side = rng.random_range(0..4);
         let pos = match side {
-            0 => Vec2::new(rng.gen_range(-half_w..half_w), half_h),
-            1 => Vec2::new(rng.gen_range(-half_w..half_w), -half_h),
-            2 => Vec2::new(-half_w, rng.gen_range(-half_h..half_h)),
-            _ => Vec2::new(half_w, rng.gen_range(-half_h..half_h)),
+            0 => Vec2::new(rng.random_range(-half_w..half_w), half_h),
+            1 => Vec2::new(rng.random_range(-half_w..half_w), -half_h),
+            2 => Vec2::new(-half_w, rng.random_range(-half_h..half_h)),
+            _ => Vec2::new(half_w, rng.random_range(-half_h..half_h)),
         };
 
         commands.spawn((

@@ -5,14 +5,14 @@ use crate::components::*;
 use crate::constants::*;
 
 pub fn spawn_blood(commands: &mut Commands, position: Vec2) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..BLOOD_PARTICLES_PER_HIT {
-        let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-        let speed = rng.gen_range(BLOOD_SPREAD_SPEED * 0.5..BLOOD_SPREAD_SPEED);
+        let angle = rng.random_range(0.0..std::f32::consts::TAU);
+        let speed = rng.random_range(BLOOD_SPREAD_SPEED * 0.5..BLOOD_SPREAD_SPEED);
 
         // Farbe zwischen min und max interpolieren
-        let t = rng.gen_range(0.0_f32..1.0);
+        let t = rng.random_range(0.0_f32..1.0);
         let min = BLOOD_COLOR_MIN.to_srgba();
         let max = BLOOD_COLOR_MAX.to_srgba();
         let color = Color::srgb(
@@ -49,7 +49,7 @@ pub fn blood_update(
             transform.translation.x += velocity.0.x * time.delta_secs();
             transform.translation.y += velocity.0.y * time.delta_secs();
 
-            if particle.lifetime.finished() {
+            if particle.lifetime.is_finished() {
                 particle.on_ground = true;
                 velocity.0 = Vec2::ZERO;
             }

@@ -139,7 +139,7 @@ pub fn update_hud(
     mut ammo_query: Query<(&mut Sprite, &mut Visibility, &AmmoIndicator)>,
 ) {
     // Combo-Block
-    if let Ok(mut transform) = block_query.get_single_mut() {
+    if let Ok(mut transform) = block_query.single_mut() {
         let half_track = COMBO_TRACK_WIDTH / 2.0;
         let x = -half_track + combo.position.clamp(0.0, 1.0) * COMBO_TRACK_WIDTH;
         transform.translation.x = x;
@@ -148,10 +148,10 @@ pub fn update_hud(
         transform.translation.y = track_y + bounce;
     }
 
-    if let Ok(mut text) = score_text.get_single_mut() {
+    if let Ok(mut text) = score_text.single_mut() {
         **text = format!("Score: {}", score.points);
     }
-    if let Ok(mut text) = wave_text.get_single_mut() {
+    if let Ok(mut text) = wave_text.single_mut() {
         **text = format!("Wave: {}", wave.current_wave);
     }
 
@@ -236,7 +236,7 @@ pub fn restart_game(
     all_entities: Query<Entity, (Without<Camera>, Without<Window>)>,
 ) {
     for entity in all_entities.iter() {
-        commands.entity(entity).try_despawn_recursive();
+        commands.entity(entity).try_despawn();
     }
     *score = Score::default();
     *wave = WaveState::default();

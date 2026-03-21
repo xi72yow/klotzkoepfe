@@ -19,7 +19,7 @@ pub fn mine_system(
 ) {
     for (mine_entity, mine_transform, mut mine) in mine_query.iter_mut() {
         mine.arm_timer.tick(time.delta());
-        if !mine.arm_timer.finished() {
+        if !mine.arm_timer.is_finished() {
             continue;
         }
 
@@ -121,7 +121,7 @@ pub fn boomerang_system(
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     combo.position += settings.combo_kill_boost;
                     spawn_blood(&mut commands, zombie_pos);
-                    if rand::thread_rng().gen_ratio(1, 12) {
+                    if rand::rng().random_ratio(1, 12) {
                         spawn_drop(&mut commands, zombie_pos);
                     }
                 }
@@ -148,7 +148,7 @@ pub fn zombie_freeze_update(
     for mut zombie in query.iter_mut() {
         if zombie.speed_modifier < 1.0 {
             zombie.freeze_timer.tick(time.delta());
-            if zombie.freeze_timer.finished() {
+            if zombie.freeze_timer.is_finished() {
                 zombie.speed_modifier = 1.0;
             }
         }
@@ -219,7 +219,7 @@ pub fn weapon_unlock_fade(
         unlock.lifetime.tick(time.delta());
         let alpha = 1.0 - unlock.lifetime.fraction();
         *color = TextColor(Color::srgba(1.0, 1.0, 0.3, alpha));
-        if unlock.lifetime.finished() {
+        if unlock.lifetime.is_finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -238,7 +238,7 @@ pub fn weapon_unlock_fade(
         let c = sprite.color.to_srgba();
         sprite.color = Color::srgba(c.red, c.green, c.blue, alpha);
 
-        if icon.lifetime.finished() {
+        if icon.lifetime.is_finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -257,9 +257,9 @@ pub fn drop_spawn_on_kill(
 
 pub fn spawn_drop(commands: &mut Commands, position: Vec2) {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let drop_type = if rng.gen_bool(0.6) {
+    let drop_type = if rng.random_bool(0.6) {
         DropType::Ammo
     } else {
         DropType::Health
@@ -294,7 +294,7 @@ pub fn drop_pickup(
 ) {
     for (drop_entity, mut drop, drop_transform) in drop_query.iter_mut() {
         drop.lifetime.tick(time.delta());
-        if drop.lifetime.finished() {
+        if drop.lifetime.is_finished() {
             commands.entity(drop_entity).despawn();
             continue;
         }

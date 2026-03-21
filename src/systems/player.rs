@@ -125,7 +125,7 @@ pub fn player_shoot(
         if player.reloading {
             player.reload_timer.tick(time.delta());
             player.reload_elapsed += time.delta_secs();
-            if player.reload_timer.finished() {
+            if player.reload_timer.is_finished() {
                 player.reloading = false;
                 player.reload_elapsed = 0.0;
                 player.ammo = ws.magazine;
@@ -140,7 +140,7 @@ pub fn player_shoot(
             PlayerId::P2 => keyboard.pressed(KeyCode::Enter),
         };
 
-        if wants_shoot && player.shoot_cooldown.finished() && player.ammo > 0 {
+        if wants_shoot && player.shoot_cooldown.is_finished() && player.ammo > 0 {
             player.shoot_cooldown.reset();
             player.ammo -= 1;
 
@@ -148,7 +148,7 @@ pub fn player_shoot(
             let dir = player.facing;
             let pos = transform.translation;
             let angle = dir.y.atan2(dir.x);
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             match weapon {
                 WeaponType::Grenade => {
@@ -178,32 +178,32 @@ pub fn player_shoot(
                 }
                 WeaponType::Flamethrower => {
                     let sa = ws.spread_angle.max(0.01);
-                    let spread = rng.gen_range(-sa..sa);
+                    let spread = rng.random_range(-sa..sa);
                     let fa = angle + spread;
                     let fd = Vec2::new(fa.cos(), fa.sin());
                     commands.spawn((
                         Sprite {
-                            color: Color::srgb(1.0, rng.gen_range(0.2..0.6), 0.0),
-                            custom_size: Some(Vec2::splat(rng.gen_range(4.0..8.0))),
+                            color: Color::srgb(1.0, rng.random_range(0.2..0.6), 0.0),
+                            custom_size: Some(Vec2::splat(rng.random_range(4.0..8.0))),
                             ..default()
                         },
                         Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(fa)),
-                        Bullet { damage: ws.damage, range_remaining: ws.range * rng.gen_range(0.6..1.0), pierce_remaining: 1 },
-                        Velocity(fd * ws.bullet_speed * rng.gen_range(0.7..1.3)),
+                        Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.6..1.0), pierce_remaining: 1 },
+                        Velocity(fd * ws.bullet_speed * rng.random_range(0.7..1.3)),
                     ));
                 }
                 WeaponType::Shotgun => {
                     let count = ws.pellet_count.max(1);
                     let spread = ws.spread_angle.max(0.01);
                     for _ in 0..count {
-                        let offset = rng.gen_range(-spread..spread);
+                        let offset = rng.random_range(-spread..spread);
                         let pa = angle + offset;
                         let pd = Vec2::new(pa.cos(), pa.sin());
                         commands.spawn((
                             Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
                             Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(pa)),
-                            Bullet { damage: ws.damage, range_remaining: ws.range * rng.gen_range(0.7..1.0), pierce_remaining: 1 },
-                            Velocity(pd * ws.bullet_speed * rng.gen_range(0.85..1.15)),
+                            Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.7..1.0), pierce_remaining: 1 },
+                            Velocity(pd * ws.bullet_speed * rng.random_range(0.85..1.15)),
                         ));
                     }
                 }
@@ -298,7 +298,7 @@ pub fn update_player_hp_bars(
         let offset = inv_rot * Vec3::new(0.0, HP_BAR_OFFSET_Y, 0.0);
 
         for child in children.iter() {
-            if let Ok((hp_bar, hp_bg, mut sprite, mut transform)) = hp_children.get_mut(*child) {
+            if let Ok((hp_bar, hp_bg, mut sprite, mut transform)) = hp_children.get_mut(child) {
                 if hp_bar.is_some() {
                     sprite.custom_size = Some(Vec2::new(HP_BAR_WIDTH * ratio, HP_BAR_HEIGHT));
                     sprite.color = if ratio > 0.5 { Color::srgb(0.0, 0.8, 0.0) }
@@ -321,7 +321,7 @@ pub fn update_weapon_sprites(
 ) {
     for (player, children) in player_query.iter() {
         for child in children.iter() {
-            if let Ok((mut sprite, mut transform)) = weapon_query.get_mut(*child) {
+            if let Ok((mut sprite, mut transform)) = weapon_query.get_mut(child) {
                 let size = player.weapon.sprite_size();
                 sprite.custom_size = Some(size);
                 sprite.color = player.weapon.sprite_color();

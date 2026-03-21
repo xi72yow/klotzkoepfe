@@ -158,7 +158,7 @@ pub fn settings_input(
     let can_change = keyboard.just_pressed(KeyCode::ArrowLeft)
         || keyboard.just_pressed(KeyCode::ArrowRight)
         || ((keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::ArrowRight))
-            && ui_state.repeat_timer.finished());
+            && ui_state.repeat_timer.is_finished());
 
     if can_change {
         ui_state.repeat_timer.reset();

@@ -95,7 +95,7 @@ pub fn bullet_zombie_collision(
                     spawn_blood(&mut commands, zombie_pos);
 
                     // Drop-Chance (~8%)
-                    if rand::thread_rng().gen_ratio(1, 12) {
+                    if rand::rng().random_ratio(1, 12) {
                         spawn_drop(&mut commands, zombie_pos);
                     }
                 }
@@ -137,7 +137,7 @@ pub fn explosion_zombie_collision(
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     combo.position += settings.combo_kill_boost;
                     spawn_blood(&mut commands, zombie_pos);
-                    if rand::thread_rng().gen_ratio(1, 12) {
+                    if rand::rng().random_ratio(1, 12) {
                         spawn_drop(&mut commands, zombie_pos);
                     }
                 }
@@ -162,7 +162,7 @@ pub fn zombie_player_collision(
         for (entity, player, mut health, mut player_transform) in player_query.iter_mut() {
             let player_pos = player_transform.translation.truncate();
             if aabb_overlap(player_pos, PLAYER_SIZE, zombie_pos, ZOMBIE_SIZE) {
-                if zombie.damage_cooldown.finished() {
+                if zombie.damage_cooldown.is_finished() {
                     health.current -= settings.zombie_damage;
                     zombie.damage_cooldown.reset();
                     let diff = player_pos - zombie_pos;
@@ -173,7 +173,7 @@ pub fn zombie_player_collision(
                     }
                     if health.current <= 0.0 {
                         wave.dead_players.push(player.id);
-                        commands.entity(entity).try_despawn_recursive();
+                        commands.entity(entity).try_despawn();
                     }
                     break;
                 }

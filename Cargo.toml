@@ -11,8 +11,8 @@ maintainer = "xi72yow"
 section = "games"
 
 [dependencies]
-bevy = { version = "0.15" }
-rand = "0.8"
+bevy = { version = "0.18" }
+rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

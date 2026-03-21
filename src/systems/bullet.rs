@@ -54,7 +54,7 @@ pub fn grenade_movement(
             }
         }
 
-        if grenade.fuse.finished() || hit_zombie {
+        if grenade.fuse.is_finished() || hit_zombie {
             let pos = transform.translation;
             let radius = grenade.explosion_radius;
             commands.spawn((
@@ -89,7 +89,7 @@ pub fn explosion_update(
         let alpha = 1.0 - ratio;
         sprite.color = Color::srgba(1.0, 0.5 * alpha, 0.0, alpha);
 
-        if explosion.lifetime.finished() {
+        if explosion.lifetime.is_finished() {
             commands.entity(entity).despawn();
         }
     }
