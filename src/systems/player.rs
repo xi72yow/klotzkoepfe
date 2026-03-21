@@ -141,7 +141,9 @@ pub fn player_shoot(
         };
 
         if wants_shoot && player.shoot_cooldown.is_finished() && player.ammo > 0 {
-            player.shoot_cooldown.reset();
+            // Cooldown dynamisch aus Settings (fuer Tweaking)
+            player.shoot_cooldown = Timer::from_seconds(ws.cooldown, TimerMode::Once);
+            player.shoot_cooldown.tick(std::time::Duration::from_secs(0));
             player.ammo -= 1;
 
             let weapon = player.weapon;
@@ -161,6 +163,7 @@ pub fn player_shoot(
                             explosion_radius: settings.explosion_radius,
                         },
                         Velocity(dir * ws.bullet_speed),
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Rocket => {
@@ -168,12 +171,13 @@ pub fn player_shoot(
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
                         Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
-                        GrenadeProjectile {
+                        RocketProjectile {
                             damage: ws.damage,
-                            fuse: Timer::from_seconds(ws.range / ws.bullet_speed, TimerMode::Once),
                             explosion_radius: expl_r,
+                            range_remaining: ws.range,
                         },
                         Velocity(dir * ws.bullet_speed),
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Flamethrower => {
@@ -190,6 +194,7 @@ pub fn player_shoot(
                         Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(fa)),
                         Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.6..1.0), pierce_remaining: 1 },
                         Velocity(fd * ws.bullet_speed * rng.random_range(0.7..1.3)),
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Shotgun => {
@@ -204,6 +209,7 @@ pub fn player_shoot(
                             Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(pa)),
                             Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.7..1.0), pierce_remaining: 1 },
                             Velocity(pd * ws.bullet_speed * rng.random_range(0.85..1.15)),
+                            BulletOwner(player.id),
                         ));
                     }
                 }
@@ -217,6 +223,7 @@ pub fn player_shoot(
                             damage: ws.damage, radius: expl_r, trigger_radius: tr,
                             arm_timer: Timer::from_seconds(0.5, TimerMode::Once),
                         },
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Boomerang => {
@@ -229,6 +236,7 @@ pub fn player_shoot(
                             traveled: 0.0, direction: dir,
                         },
                         Spinning { speed: 15.0 },
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Tesla => {
@@ -242,6 +250,7 @@ pub fn player_shoot(
                             chain_damage: ws.damage * 0.7,
                         },
                         Velocity(dir * ws.bullet_speed),
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Buzzsaw => {
@@ -251,6 +260,7 @@ pub fn player_shoot(
                         Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: 999 },
                         Velocity(dir * ws.bullet_speed),
                         Spinning { speed: 12.0 },
+                        BulletOwner(player.id),
                     ));
                 }
                 WeaponType::FreezeGun => {
@@ -263,6 +273,7 @@ pub fn player_shoot(
                             slow_duration: if ws.slow_duration > 0.0 { ws.slow_duration } else { 3.0 },
                         },
                         Velocity(dir * ws.bullet_speed),
+                        BulletOwner(player.id),
                     ));
                 }
                 // Laser, Railgun, Pistol, Uzi - standard bullets
@@ -272,6 +283,7 @@ pub fn player_shoot(
                         Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
                         Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: weapon.piercing() },
                         Velocity(dir * ws.bullet_speed),
+                        BulletOwner(player.id),
                     ));
                 }
             }

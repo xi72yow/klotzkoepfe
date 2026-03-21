@@ -132,6 +132,9 @@ pub struct GameSettings {
     pub freezegun: WeaponSettings,
 
     pub explosion_radius: f32,
+
+    #[serde(default)]
+    pub friendly_fire: bool,
 }
 
 fn default_shotgun() -> WeaponSettings {
@@ -151,7 +154,7 @@ fn default_laser() -> WeaponSettings {
 }
 fn default_mine() -> WeaponSettings {
     WeaponSettings {
-        cooldown: 0.8, magazine: 5, reload_time: 3.0, range: 0.0,
+        cooldown: 0.05, magazine: 5, reload_time: 3.0, range: 0.0,
         damage: 60.0, bullet_speed: 0.0, score_required: 25,
         trigger_radius: 40.0, explosion_radius_override: 90.0,
         ..WeaponSettings::empty()
@@ -327,6 +330,7 @@ impl Default for GameSettings {
             rocket: default_rocket(),
             freezegun: default_freezegun(),
             explosion_radius: 80.0,
+            friendly_fire: false,
         }
     }
 }

@@ -172,6 +172,9 @@ pub struct Bullet {
 }
 
 #[derive(Component)]
+pub struct BulletOwner(pub PlayerId);
+
+#[derive(Component)]
 pub struct FreezeBullet {
     pub slow_factor: f32,
     pub slow_duration: f32,
@@ -189,6 +192,13 @@ pub struct GrenadeProjectile {
     pub damage: f32,
     pub fuse: Timer,
     pub explosion_radius: f32,
+}
+
+#[derive(Component)]
+pub struct RocketProjectile {
+    pub damage: f32,
+    pub explosion_radius: f32,
+    pub range_remaining: f32,
 }
 
 #[derive(Component)]

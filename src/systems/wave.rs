@@ -15,8 +15,9 @@ pub fn wave_system(
         if wave.pause_timer.is_finished() {
             wave.pausing = false;
 
-            // Tote Spieler wiederbeleben
-            let dead = std::mem::take(&mut wave.dead_players);
+            // Tote Spieler wiederbeleben (Duplikate entfernen)
+            let mut dead = std::mem::take(&mut wave.dead_players);
+            dead.dedup();
             for player_id in dead {
                 respawn_player(&mut commands, &settings, player_id);
             }

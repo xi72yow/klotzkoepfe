@@ -38,10 +38,10 @@ fn main() {
                 hud::setup_hud,
             ),
         )
-        // Restart nach Game Over
+        // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
         .add_systems(
             OnEnter(GameState::Restarting),
-            hud::restart_game,
+            (hud::restart_despawn, hud::restart_spawn).chain(),
         )
         // Pause-Toggle laeuft immer
         .add_systems(Update, hud::pause_toggle)
@@ -66,12 +66,14 @@ fn main() {
                 player::update_weapon_sprites,
                 bullet::bullet_movement,
                 bullet::grenade_movement,
+                bullet::rocket_movement,
                 bullet::explosion_update,
                 zombie::zombie_spawn,
                 zombie::zombie_ai,
                 zombie::zombie_separation,
                 collision::bullet_zombie_collision,
                 collision::explosion_zombie_collision,
+                collision::bullet_player_collision,
                 collision::zombie_player_collision,
                 blood::blood_update,
                 wave::wave_system,

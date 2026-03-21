@@ -146,6 +146,44 @@ pub fn explosion_zombie_collision(
     }
 }
 
+pub fn bullet_player_collision(
+    mut commands: Commands,
+    settings: Res<GameSettings>,
+    mut wave: ResMut<WaveState>,
+    mut next_state: ResMut<NextState<GameState>>,
+    bullet_query: Query<(Entity, &Transform, &Bullet, &BulletOwner)>,
+    mut player_query: Query<(Entity, &Player, &mut Health, &Transform), Without<Bullet>>,
+) {
+    if !settings.friendly_fire { return; }
+
+    for (bullet_entity, bullet_transform, bullet, owner) in bullet_query.iter() {
+        let bullet_pos = bullet_transform.translation.truncate();
+
+        for (player_entity, player, mut health, player_transform) in player_query.iter_mut() {
+            // Eigene Bullets ignorieren
+            if player.id == owner.0 { continue; }
+
+            let player_pos = player_transform.translation.truncate();
+            if aabb_overlap(bullet_pos, Vec2::new(8.0, 8.0), player_pos, crate::constants::PLAYER_SIZE) {
+                health.current -= bullet.damage;
+                spawn_blood(&mut commands, bullet_pos);
+                commands.entity(bullet_entity).try_despawn();
+
+                if health.current <= 0.0 {
+                    if !wave.dead_players.contains(&player.id) {
+                        wave.dead_players.push(player.id);
+                    }
+                    commands.entity(player_entity).try_despawn();
+                }
+                break;
+            }
+        }
+    }
+    if player_query.iter().count() == 0 {
+        next_state.set(GameState::GameOver);
+    }
+}
+
 pub fn zombie_player_collision(
     time: Res<Time>,
     mut commands: Commands,
@@ -172,7 +210,9 @@ pub fn zombie_player_collision(
                         player_transform.translation.y += kb.y;
                     }
                     if health.current <= 0.0 {
-                        wave.dead_players.push(player.id);
+                        if !wave.dead_players.contains(&player.id) {
+                            wave.dead_players.push(player.id);
+                        }
                         commands.entity(entity).try_despawn();
                     }
                     break;

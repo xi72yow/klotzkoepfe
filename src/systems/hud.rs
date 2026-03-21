@@ -4,13 +4,28 @@ use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
 
-const AMMO_RECT_W: f32 = 5.0;
-const AMMO_RECT_H: f32 = 12.0;
-const AMMO_SPACING: f32 = 7.0;
-const AMMO_COLOR_FULL: Color = Color::srgb(1.0, 0.9, 0.2);
-const AMMO_COLOR_EMPTY: Color = Color::srgb(0.2, 0.2, 0.2);
+const AMMO_COLOR_EMPTY: Color = Color::srgb(0.15, 0.15, 0.15);
 const AMMO_COLOR_RELOAD: Color = Color::srgb(0.8, 0.3, 0.0);
-const MAX_MAGAZINE: u32 = 30; // Uzi hat das groesste Magazin
+const AMMO_AREA_WIDTH: f32 = 220.0;
+
+/// Gibt (Breite, Hoehe, Farbe) fuer die Ammo-Anzeige einer Waffe zurueck
+fn ammo_style(weapon: WeaponType) -> (f32, f32, Color) {
+    match weapon {
+        WeaponType::Pistol     => (5.0, 12.0, Color::srgb(1.0, 0.9, 0.2)),
+        WeaponType::Uzi        => (3.0, 10.0, Color::srgb(1.0, 0.7, 0.1)),
+        WeaponType::Shotgun    => (7.0, 14.0, Color::srgb(0.9, 0.5, 0.2)),
+        WeaponType::Grenade    => (8.0, 8.0,  Color::srgb(0.3, 0.6, 0.2)),
+        WeaponType::Rocket     => (10.0, 5.0, Color::srgb(0.8, 0.3, 0.1)),
+        WeaponType::Railgun    => (12.0, 3.0, Color::srgb(0.3, 0.8, 1.0)),
+        WeaponType::Flamethrower => (3.0, 6.0, Color::srgb(1.0, 0.4, 0.0)),
+        WeaponType::Laser      => (2.0, 8.0,  Color::srgb(1.0, 0.1, 0.1)),
+        WeaponType::Mine       => (8.0, 8.0,  Color::srgb(0.6, 0.6, 0.1)),
+        WeaponType::Boomerang  => (8.0, 4.0,  Color::srgb(0.8, 0.4, 0.0)),
+        WeaponType::Tesla      => (5.0, 10.0, Color::srgb(0.5, 0.5, 1.0)),
+        WeaponType::Buzzsaw    => (8.0, 8.0,  Color::srgb(0.7, 0.7, 0.7)),
+        WeaponType::FreezeGun  => (4.0, 10.0, Color::srgb(0.4, 0.9, 1.0)),
+    }
+}
 
 pub fn setup_hud(mut commands: Commands) {
     let track_y = WINDOW_HEIGHT / 2.0 - 40.0;
@@ -56,53 +71,24 @@ pub fn setup_hud(mut commands: Commands) {
     ));
 
     // Waffen-Name P1 (links unten)
-    let p1_base_x = -WINDOW_WIDTH / 2.0 + 20.0;
     let ammo_y = -WINDOW_HEIGHT / 2.0 + 30.0;
 
     commands.spawn((
         Text2d::new("Pistole"),
         TextFont { font_size: 16.0, ..default() },
         TextColor(PLAYER_COLOR_P1),
-        Transform::from_xyz(p1_base_x + 50.0, ammo_y + 18.0, 20.0),
+        Transform::from_xyz(-WINDOW_WIDTH / 2.0 + 20.0 + 50.0, ammo_y + 18.0, 20.0),
         WeaponNameText(PlayerId::P1),
     ));
 
-    // Patronen P1
-    for i in 0..MAX_MAGAZINE {
-        commands.spawn((
-            Sprite {
-                color: AMMO_COLOR_FULL,
-                custom_size: Some(Vec2::new(AMMO_RECT_W, AMMO_RECT_H)),
-                ..default()
-            },
-            Transform::from_xyz(p1_base_x + i as f32 * AMMO_SPACING, ammo_y, 20.0),
-            AmmoIndicator { player_id: PlayerId::P1, index: i },
-        ));
-    }
-
     // Waffen-Name P2 (rechts unten)
-    let p2_base_x = WINDOW_WIDTH / 2.0 - 20.0 - (MAX_MAGAZINE - 1) as f32 * AMMO_SPACING;
-
     commands.spawn((
         Text2d::new("Pistole"),
         TextFont { font_size: 16.0, ..default() },
         TextColor(PLAYER_COLOR_P2),
-        Transform::from_xyz(p2_base_x + 50.0, ammo_y + 18.0, 20.0),
+        Transform::from_xyz(WINDOW_WIDTH / 2.0 - 20.0 - 50.0, ammo_y + 18.0, 20.0),
         WeaponNameText(PlayerId::P2),
     ));
-
-    // Patronen P2
-    for i in 0..MAX_MAGAZINE {
-        commands.spawn((
-            Sprite {
-                color: AMMO_COLOR_FULL,
-                custom_size: Some(Vec2::new(AMMO_RECT_W, AMMO_RECT_H)),
-                ..default()
-            },
-            Transform::from_xyz(p2_base_x + i as f32 * AMMO_SPACING, ammo_y, 20.0),
-            AmmoIndicator { player_id: PlayerId::P2, index: i },
-        ));
-    }
 }
 
 pub fn combo_system(
@@ -127,6 +113,7 @@ pub fn combo_system(
 }
 
 pub fn update_hud(
+    mut commands: Commands,
     score: Res<Score>,
     wave: Res<WaveState>,
     combo: Res<ComboMeter>,
@@ -136,7 +123,7 @@ pub fn update_hud(
     mut score_text: Query<&mut Text2d, (With<ScoreText>, Without<WaveText>, Without<WeaponNameText>)>,
     mut wave_text: Query<&mut Text2d, (With<WaveText>, Without<ScoreText>, Without<WeaponNameText>)>,
     mut weapon_name: Query<(&mut Text2d, &WeaponNameText), (Without<ScoreText>, Without<WaveText>)>,
-    mut ammo_query: Query<(&mut Sprite, &mut Visibility, &AmmoIndicator)>,
+    ammo_query: Query<Entity, With<AmmoIndicator>>,
 ) {
     // Combo-Block
     if let Ok(mut transform) = block_query.single_mut() {
@@ -169,25 +156,53 @@ pub fn update_hud(
         }
     }
 
-    // Munitions-Rechtecke aktualisieren
-    for (mut sprite, mut vis, indicator) in ammo_query.iter_mut() {
-        if let Some(player) = player_query.iter().find(|p| p.id == indicator.player_id) {
-            let magazine = settings.weapon(player.weapon).magazine;
+    // Alte Ammo-Indikatoren entfernen
+    for entity in ammo_query.iter() {
+        commands.entity(entity).despawn();
+    }
 
-            if indicator.index >= magazine {
-                *vis = Visibility::Hidden;
+    // Munitions-Anzeige dynamisch pro Spieler aufbauen
+    let ammo_y = -WINDOW_HEIGHT / 2.0 + 30.0;
+
+    for player in player_query.iter() {
+        let weapon = player.weapon;
+        let magazine = settings.weapon(weapon).magazine;
+        let (rect_w, rect_h, full_color) = ammo_style(weapon);
+
+        // Berechne Layout: max Spalten pro Reihe passend zur AMMO_AREA_WIDTH
+        let spacing_x = rect_w + 2.0;
+        let spacing_y = rect_h + 2.0;
+        let cols_per_row = ((AMMO_AREA_WIDTH / spacing_x) as u32).max(1);
+        let rows = (magazine + cols_per_row - 1) / cols_per_row;
+
+        let base_x = match player.id {
+            PlayerId::P1 => -WINDOW_WIDTH / 2.0 + 20.0,
+            PlayerId::P2 => WINDOW_WIDTH / 2.0 - 20.0 - (cols_per_row.min(magazine) as f32 - 1.0) * spacing_x,
+        };
+
+        for i in 0..magazine {
+            let col = i % cols_per_row;
+            let row = i / cols_per_row;
+            let x = base_x + col as f32 * spacing_x;
+            let y = ammo_y - row as f32 * spacing_y;
+
+            let color = if player.reloading {
+                AMMO_COLOR_RELOAD
+            } else if i < player.ammo {
+                full_color
             } else {
-                *vis = Visibility::Visible;
-                if player.reloading {
-                    sprite.color = AMMO_COLOR_RELOAD;
-                } else if indicator.index < player.ammo {
-                    sprite.color = AMMO_COLOR_FULL;
-                } else {
-                    sprite.color = AMMO_COLOR_EMPTY;
-                }
-            }
-        } else {
-            *vis = Visibility::Hidden;
+                AMMO_COLOR_EMPTY
+            };
+
+            commands.spawn((
+                Sprite {
+                    color,
+                    custom_size: Some(Vec2::new(rect_w, rect_h)),
+                    ..default()
+                },
+                Transform::from_xyz(x, y, 20.0),
+                AmmoIndicator { player_id: player.id, index: i },
+            ));
         }
     }
 }
@@ -225,31 +240,38 @@ pub fn game_over_input(
     }
 }
 
-pub fn restart_game(
+pub fn restart_despawn(world: &mut World) {
+    // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
+    let to_despawn: Vec<Entity> = world
+        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>)>>()
+        .iter(world)
+        .collect();
+
+    for entity in to_despawn {
+        if world.get_entity(entity).is_ok() {
+            world.despawn(entity);
+        }
+    }
+
+    // Resources resetten
+    *world.resource_mut::<Score>() = Score::default();
+    *world.resource_mut::<WaveState>() = WaveState::default();
+    *world.resource_mut::<ComboMeter>() = ComboMeter::default();
+    *world.resource_mut::<crate::systems::weapons::UnlockedWeapons>() =
+        crate::systems::weapons::UnlockedWeapons::default();
+}
+
+pub fn restart_spawn(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
-    mut score: ResMut<Score>,
-    mut wave: ResMut<WaveState>,
-    mut combo: ResMut<ComboMeter>,
-    mut unlocked: ResMut<crate::systems::weapons::UnlockedWeapons>,
     settings: Res<GameSettings>,
-    all_entities: Query<Entity, (Without<Camera>, Without<Window>)>,
 ) {
-    for entity in all_entities.iter() {
-        commands.entity(entity).try_despawn();
-    }
-    *score = Score::default();
-    *wave = WaveState::default();
-    *combo = ComboMeter::default();
-    *unlocked = crate::systems::weapons::UnlockedWeapons::default();
-
-    // Alles neu aufbauen
     crate::systems::room::setup_room(commands.reborrow());
     crate::systems::player::spawn_players(commands.reborrow(), settings);
     setup_hud(commands);
-
     next_state.set(GameState::Playing);
 }
+
 
 pub fn pause_toggle(
     keyboard: Res<ButtonInput<KeyCode>>,
