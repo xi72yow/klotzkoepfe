@@ -266,7 +266,7 @@ pub fn game_over_input(
 pub fn restart_despawn(world: &mut World) {
     // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
     let to_despawn: Vec<Entity> = world
-        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>)>>()
+        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>)>>()
         .iter(world)
         .collect();
 
@@ -290,7 +290,8 @@ pub fn restart_spawn(
     settings: Res<GameSettings>,
 ) {
     crate::systems::room::setup_room(commands.reborrow());
-    crate::systems::player::spawn_players(commands.reborrow(), settings);
+    crate::systems::player::spawn_players(commands.reborrow(), settings.clone());
+    crate::systems::crates::setup_base_crates(commands.reborrow(), settings);
     setup_hud(commands);
     next_state.set(GameState::Playing);
 }

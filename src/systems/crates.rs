@@ -18,7 +18,11 @@ pub fn setup_base_crates(mut commands: Commands, settings: Res<GameSettings>) {
     ];
 
     for pos in positions {
-        spawn_loot_crate(&mut commands, pos, CrateType::Base, settings.crate_despawn_time);
+        commands.spawn(BaseCrateSpawner {
+            position: pos,
+            respawn_timer: Timer::from_seconds(settings.base_crate_respawn_time, TimerMode::Once),
+            active: true,
+        });
     }
 }
 
