@@ -281,6 +281,7 @@ pub fn player_weapon_switch(
     score: Res<Score>,
     settings: Res<GameSettings>,
     mut query: Query<&mut Player>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     for mut player in query.iter_mut() {
         let switch = match player.id {
@@ -308,6 +309,7 @@ pub fn player_weapon_switch(
             player.shoot_cooldown = Timer::from_seconds(ws.cooldown, TimerMode::Once);
             player.shoot_cooldown.tick(std::time::Duration::from_secs(10));
             player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
+            sound_events.0.push(super::audio::SoundEvent::WeaponSwitch);
         }
     }
 }
@@ -319,6 +321,7 @@ pub fn player_shoot(
     settings: Res<GameSettings>,
     score: Res<Score>,
     mut query: Query<(&mut Player, &Transform)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     for (mut player, transform) in query.iter_mut() {
         let lvl = settings.weapon_level(player.weapon, score.points);
@@ -348,6 +351,7 @@ pub fn player_shoot(
             player.shoot_cooldown = Timer::from_seconds(ws.cooldown, TimerMode::Once);
             player.shoot_cooldown.tick(std::time::Duration::from_secs(0));
             player.ammo -= 1;
+            sound_events.0.push(super::audio::SoundEvent::Shoot(player.weapon));
 
             let weapon = player.weapon;
             let dir = player.facing;
@@ -510,6 +514,7 @@ pub fn player_shoot(
                     player.reloading = true;
                     player.reload_elapsed = 0.0;
                     player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
+                    sound_events.0.push(super::audio::SoundEvent::Reload);
                 }
                 // If no magazines left, player can't reload (must pick up ammo)
             }

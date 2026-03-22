@@ -9,6 +9,7 @@ pub fn wave_system(
     time: Res<Time>,
     settings: Res<GameSettings>,
     mut wave: ResMut<WaveState>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     if wave.pausing {
         wave.pause_timer.tick(time.delta());
@@ -23,12 +24,14 @@ pub fn wave_system(
             }
 
             start_wave(&settings, &mut wave);
+            sound_events.0.push(super::audio::SoundEvent::WaveStart);
         }
         return;
     }
 
     if !wave.active {
         start_wave(&settings, &mut wave);
+        sound_events.0.push(super::audio::SoundEvent::WaveStart);
         return;
     }
 

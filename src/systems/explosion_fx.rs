@@ -106,6 +106,15 @@ pub fn update_shader_explosions(
     )>,
 ) {
     for (entity, mut explosion, material_handle, transform) in query.iter_mut() {
+        // Brandfleck beim ersten Frame stempeln (waehrend Explosion sichtbar)
+        if !explosion.damaged {
+            let pos = transform.translation.truncate();
+            decal_map.pending_stamps.push(DecalStamp::Burn {
+                position: pos,
+                radius: explosion.radius,
+            });
+        }
+
         explosion.lifetime.tick(time.delta());
         let progress = explosion.lifetime.fraction();
 
@@ -115,12 +124,6 @@ pub fn update_shader_explosions(
         }
 
         if explosion.lifetime.is_finished() {
-            // Brandfleck stempeln
-            let pos = transform.translation.truncate();
-            decal_map.pending_stamps.push(DecalStamp::Burn {
-                position: pos,
-                radius: explosion.radius,
-            });
             commands.entity(entity).despawn();
         }
     }

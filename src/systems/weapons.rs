@@ -19,6 +19,7 @@ pub fn mine_system(
     mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut mine_query: Query<(Entity, &Transform, &mut MineEntity)>,
     mut zombie_query: Query<(Entity, &Transform, &mut Health), With<Zombie>>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     for (mine_entity, mine_transform, mut mine) in mine_query.iter_mut() {
         mine.arm_timer.tick(time.delta());
@@ -48,6 +49,7 @@ pub fn mine_system(
                 mine.damage,
                 1,
             );
+            sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Mine));
             commands.entity(mine_entity).despawn();
         }
     }

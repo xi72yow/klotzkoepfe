@@ -108,6 +108,7 @@ pub fn bullet_zombie_collision(
     zombie_arm_query: Query<(Entity, &ZombieArm, &Sprite, &Transform), Without<ZombieLeg>>,
     zombie_leg_query: Query<(Entity, &ZombieLeg, &Sprite, &Transform), Without<ZombieArm>>,
     sprite_query: Query<(&Sprite, &Transform), (Without<Zombie>, Without<Player>)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     // Sammle Zombie-Positionen fuer Tesla-Chain
     let zombie_positions: Vec<(Entity, Vec2)> = zombie_query.iter()
@@ -228,6 +229,7 @@ pub fn bullet_zombie_collision(
                     commands.entity(zombie_entity).try_despawn();
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     register_kill(&mut score, &mut combo, &settings);
+                    sound_events.0.push(super::audio::SoundEvent::ZombieDeath);
 
                     // Red crate drop chance
                     if rand::rng().random::<f32>() < settings.crate_spawn_chance {
@@ -255,6 +257,7 @@ pub fn explosion_zombie_collision(
     mut shader_explosion_query: Query<(&Transform, &mut ShaderExplosion), Without<Explosion>>,
     mut zombie_query: Query<(Entity, &Transform, &mut Health, Option<&Children>), With<Zombie>>,
     sprite_query: Query<(&Sprite, &Transform), (Without<Zombie>, Without<Player>)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     // Sammle alle Explosions-Daten (alte Sprite + neue Shader)
     let mut explosions: Vec<(Vec2, f32, f32)> = Vec::new();
@@ -289,6 +292,7 @@ pub fn explosion_zombie_collision(
                     commands.entity(zombie_entity).try_despawn();
                     wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
                     register_kill(&mut score, &mut combo, &settings);
+                    sound_events.0.push(super::audio::SoundEvent::ZombieDeath);
                     if rand::rng().random::<f32>() < settings.crate_spawn_chance {
                         spawn_random_crate(&mut commands, zombie_pos, settings.crate_despawn_time);
                     }
@@ -398,6 +402,7 @@ pub fn zombie_player_collision(
     mut wave: ResMut<WaveState>,
     mut zombie_query: Query<(&mut Zombie, &Transform)>,
     mut player_query: Query<(Entity, &Player, &mut Health, &mut Transform, Option<&mut RegenCooldown>), Without<Zombie>>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     use crate::constants::*;
     for (mut zombie, zombie_transform) in zombie_query.iter_mut() {
@@ -409,6 +414,7 @@ pub fn zombie_player_collision(
                 if zombie.damage_cooldown.is_finished() {
                     health.current -= settings.zombie_damage;
                     zombie.damage_cooldown.reset();
+                    sound_events.0.push(super::audio::SoundEvent::PlayerDamage);
                     // Reset regen cooldown on damage
                     if let Some(mut regen) = regen {
                         regen.timer = Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once);

@@ -291,6 +291,7 @@ pub struct Zombie {
     pub damage_cooldown: Timer,
     pub speed_modifier: f32,
     pub freeze_timer: Timer,
+    pub groan_timer: Timer,
 }
 
 #[derive(Component)]

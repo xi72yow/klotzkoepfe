@@ -40,6 +40,7 @@ pub fn grenade_movement(
     mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &mut Velocity, &mut GrenadeProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<GrenadeProjectile>)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     let wall_min_x = -WINDOW_WIDTH / 2.0 + WALL_THICKNESS;
     let wall_max_x = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
@@ -102,6 +103,7 @@ pub fn grenade_movement(
             let level = grenade.level;
             spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, grenade.damage, level);
             spawn_shrapnel(&mut commands, pos.truncate(), grenade.damage, level);
+            sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Grenade));
             commands.entity(entity).despawn();
         }
     }
@@ -114,6 +116,7 @@ pub fn rocket_movement(
     mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &Velocity, &mut RocketProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<RocketProjectile>)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
     let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
@@ -154,6 +157,7 @@ pub fn rocket_movement(
             let radius = rocket.explosion_radius;
             let level = rocket.level;
             spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, rocket.damage, level);
+            sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Rocket));
             commands.entity(entity).despawn();
         }
     }

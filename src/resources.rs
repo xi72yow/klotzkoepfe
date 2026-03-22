@@ -214,6 +214,9 @@ pub struct GameSettings {
     #[serde(default = "default_kb_duration")]
     pub knockback_duration: f32,
 
+    #[serde(default = "default_volume")]
+    pub volume: f32,
+
     #[serde(default)]
     pub fullscreen: bool,
 
@@ -233,6 +236,7 @@ pub struct GameSettings {
     pub gib_decay_time: f32,
 }
 
+fn default_volume() -> f32 { 0.5 }
 fn default_pixel_size() -> f32 { 1.3 }
 fn default_player_count() -> u32 { 1 }
 fn default_regen_delay() -> f32 { 5.0 }
@@ -640,6 +644,7 @@ impl Default for GameSettings {
             knockback_strength_zombie: 150.0,
             knockback_strength_player: 200.0,
             knockback_duration: 0.15,
+            volume: 0.5,
             fullscreen: false,
             pixelation_enabled: false,
             pixel_size: 1.3,

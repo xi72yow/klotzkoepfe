@@ -34,14 +34,14 @@ pub fn zombie_spawn(
         let variant = rng.random_range(0u8..3);
         let is_big = wave.current_wave >= settings.big_zombie_start_wave
             && rng.random::<f32>() < settings.big_zombie_spawn_chance;
-        spawn_zombie(&mut commands, pos, &settings, variant, is_big);
+        spawn_zombie(&mut commands, pos, &settings, variant, is_big, &mut rng);
 
         wave.zombies_to_spawn -= 1;
         wave.zombies_alive += 1;
     }
 }
 
-fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, variant: u8, is_big: bool) {
+fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, variant: u8, is_big: bool, rng: &mut impl Rng) {
     // 3 Zombie-Designs
     let d = if is_big { 0.7 } else { 1.0 };
     let (head_color, body_color, arm_color, leg_color) = match variant {
@@ -92,6 +92,10 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
                 damage_cooldown: Timer::from_seconds(settings.zombie_damage_cooldown, TimerMode::Once),
                 speed_modifier: 1.0,
                 freeze_timer: Timer::from_seconds(0.0, TimerMode::Once),
+                groan_timer: Timer::from_seconds(
+                    rng.random_range(5.0..20.0),
+                    TimerMode::Once,
+                ),
             },
             Health { current: hp, max: hp },
             ZombieVariant(variant),
@@ -239,6 +243,28 @@ pub fn zombie_animation(
                 let angle = facing.y.atan2(facing.x);
                 transform.rotation = Quat::from_rotation_z(angle + wobble);
             }
+        }
+    }
+}
+
+pub fn zombie_groan(
+    time: Res<Time>,
+    mut query: Query<&mut Zombie>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
+) {
+    let mut rng = rand::rng();
+    for mut zombie in query.iter_mut() {
+        zombie.groan_timer.tick(time.delta());
+        if zombie.groan_timer.just_finished() {
+            // Nur 30% Chance tatsaechlich zu groanen
+            if rng.random::<f32>() < 0.3 {
+                let variant = rng.random_range(0u8..3);
+                sound_events.0.push(super::audio::SoundEvent::ZombieGroan(variant));
+            }
+            zombie.groan_timer = Timer::from_seconds(
+                rng.random_range(10.0..30.0),
+                TimerMode::Once,
+            );
         }
     }
 }

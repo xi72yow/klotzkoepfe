@@ -34,6 +34,7 @@ fn main() {
         .init_resource::<unlock_ui::UnlockUiState>()
         .init_resource::<weapons::UnlockedWeapons>()
         .insert_resource(GameSettings::load())
+        .init_resource::<audio::SoundQueue>()
         // Erster Spielstart
         .add_systems(
             Startup,
@@ -44,6 +45,7 @@ fn main() {
                 hud::setup_hud,
                 crates::setup_base_crates,
                 ground_decals::setup_ground_decals,
+                audio::setup_audio,
             ),
         )
         // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
@@ -51,8 +53,8 @@ fn main() {
             OnEnter(GameState::Restarting),
             hud::restart_game,
         )
-        // Pause-Toggle, Fullscreen und Pixelation laufen immer
-        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, pixelation::update_pixelation))
+        // Pause-Toggle, Fullscreen, Pixelation und Audio laufen immer
+        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, pixelation::update_pixelation, audio::play_sounds))
         // Settings-UI nur im Pause-State
         .add_systems(
             Update,
@@ -92,14 +94,14 @@ fn main() {
                 collision::bullet_player_collision,
                 collision::zombie_player_collision,
                 blood::blood_update,
-                wave::wave_system,
-                hud::combo_system,
             )
                 .run_if(in_state(GameState::Playing)),
         )
         .add_systems(
             Update,
             (
+                wave::wave_system,
+                hud::combo_system,
                 hud::update_hud,
                 weapons::mine_system,
                 weapons::boomerang_system,
@@ -125,6 +127,7 @@ fn main() {
                 zombie::stun_system,
                 zombie::freeze_stack_system,
                 zombie::lightning_arc_system,
+                zombie::zombie_groan,
             )
                 .run_if(in_state(GameState::Playing)),
         )

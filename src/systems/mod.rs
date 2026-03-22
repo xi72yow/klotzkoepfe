@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod blood;
 pub mod explosion_fx;
 pub mod ground_decals;

@@ -94,6 +94,7 @@ pub fn crate_system(
     mut player_query: Query<(&mut Player, &mut Health, &Transform)>,
     mut crate_query: Query<(Entity, &mut LootCrate, &Transform, &Children)>,
     mut light_query: Query<(&CrateLight, &mut Visibility)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     for (crate_entity, mut loot_crate, crate_transform, children) in crate_query.iter_mut() {
         let crate_pos = crate_transform.translation.truncate();
@@ -133,6 +134,7 @@ pub fn crate_system(
                     }
                 }
                 picked_up = true;
+                sound_events.0.push(super::audio::SoundEvent::CratePickup);
                 break;
             }
         }
