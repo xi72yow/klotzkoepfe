@@ -1,4 +1,5 @@
 pub mod blood;
+pub mod ground_decals;
 pub mod bullet;
 pub mod collision;
 pub mod crates;

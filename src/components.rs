@@ -449,6 +449,9 @@ pub struct CrateLight {
 }
 
 #[derive(Component)]
+pub struct GroundDecalLayer;
+
+#[derive(Component)]
 pub struct BaseCrateSpawner {
     pub position: Vec2,
     pub respawn_timer: Timer,

@@ -3,6 +3,7 @@ use rand::Rng;
 
 use crate::components::*;
 use crate::constants::*;
+use super::ground_decals::{DecalStamp, GroundDecalMap};
 
 pub fn spawn_blood(commands: &mut Commands, position: Vec2) {
     spawn_blood_with_settings(commands, position, BLOOD_PARTICLES_PER_HIT, BLOOD_SPREAD_SPEED);
@@ -155,6 +156,7 @@ pub fn zombie_explode(
 pub fn gib_update(
     mut commands: Commands,
     time: Res<Time>,
+    mut decal_map: ResMut<GroundDecalMap>,
     mut query: Query<(Entity, &mut Gib, &mut Transform, &mut Velocity, &mut Sprite, Option<&mut Spinning>)>,
 ) {
     for (entity, mut gib, mut transform, mut velocity, mut sprite, spinning) in query.iter_mut() {
@@ -165,10 +167,41 @@ pub fn gib_update(
             transform.translation.y += velocity.0.y * time.delta_secs();
             velocity.0 *= 1.0 - 4.0 * time.delta_secs();
 
+            // Blutspur waehrend Flug: je nach Gib-Groesse sporadisch Troepfchen
+            let gib_area = gib.original_size.x * gib.original_size.y;
+            let speed = velocity.0.length();
+            if speed > 30.0 {
+                let mut rng = rand::rng();
+                // Groessere Gibs tropfen oefter, kleine selten
+                let drop_chance = (gib_area / 200.0).clamp(0.02, 0.3);
+                if rng.random::<f32>() < drop_chance {
+                    let pos = transform.translation.truncate();
+                    // Leichter Offset fuer Spray-Effekt
+                    let spray = Vec2::new(
+                        rng.random_range(-3.0..3.0),
+                        rng.random_range(-3.0..3.0),
+                    );
+                    let drop_radius = (gib_area / 80.0).clamp(0.5, 2.5);
+                    decal_map.pending_stamps.push(DecalStamp::Blood {
+                        position: pos + spray,
+                        color: BLOOD_COLOR_MIN,
+                        radius: drop_radius * rng.random_range(0.5..1.0),
+                    });
+                }
+            }
+
             if gib.lifetime.is_finished() {
                 gib.on_ground = true;
                 velocity.0 = Vec2::ZERO;
                 transform.rotation = Quat::IDENTITY;
+                // Letzten Blutfleck stempeln, Groesse basiert auf Gib
+                let pos = transform.translation.truncate();
+                let drop_radius = (gib_area / 60.0).clamp(1.0, 3.5);
+                decal_map.pending_stamps.push(DecalStamp::Blood {
+                    position: pos,
+                    color: BLOOD_COLOR_MAX,
+                    radius: drop_radius,
+                });
                 // Rotation stoppen
                 if let Some(mut spin) = spinning {
                     spin.speed = 0.0;
@@ -202,18 +235,26 @@ pub fn gib_update(
 }
 
 pub fn blood_update(
+    mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(&mut BloodParticle, &mut Transform, &mut Velocity)>,
+    mut decal_map: ResMut<GroundDecalMap>,
+    mut query: Query<(Entity, &mut BloodParticle, &mut Transform, &mut Velocity, &Sprite)>,
 ) {
-    for (mut particle, mut transform, mut velocity) in query.iter_mut() {
+    for (entity, mut particle, mut transform, mut velocity, sprite) in query.iter_mut() {
         if !particle.on_ground {
             particle.lifetime.tick(time.delta());
             transform.translation.x += velocity.0.x * time.delta_secs();
             transform.translation.y += velocity.0.y * time.delta_secs();
 
             if particle.lifetime.is_finished() {
-                particle.on_ground = true;
-                velocity.0 = Vec2::ZERO;
+                // Auf Boden gelandet: Decal stempeln und Entity despawnen
+                let pos = transform.translation.truncate();
+                decal_map.pending_stamps.push(DecalStamp::Blood {
+                    position: pos,
+                    color: sprite.color,
+                    radius: 3.0,
+                });
+                commands.entity(entity).despawn();
             }
         }
     }

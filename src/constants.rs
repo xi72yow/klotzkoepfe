@@ -40,6 +40,10 @@ pub const COMBO_BLOCK_SIZE: f32 = 16.0;
 pub const EXPLOSION_LIFETIME: f32 = 0.3;
 pub const EXPLOSION_COLOR: Color = Color::srgb(1.0, 0.5, 0.0);
 
+// Boden-Decal-Textur
+pub const DECAL_TEXTURE_WIDTH: u32 = 1024;
+pub const DECAL_TEXTURE_HEIGHT: u32 = 768;
+
 // WaveState defaults
 pub const SPAWN_INTERVAL: f32 = 0.8;
 pub const WAVE_PAUSE: f32 = 2.0;

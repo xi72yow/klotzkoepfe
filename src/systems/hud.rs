@@ -265,14 +265,30 @@ pub fn game_over_input(
 
 pub fn restart_game(world: &mut World) {
     // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
+    // GroundDecalLayer bleibt erhalten (Textur wird nur geleert)
     let to_despawn: Vec<Entity> = world
         .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>)>>()
         .iter(world)
+        .filter(|e| !world.get::<GroundDecalLayer>(*e).is_some())
         .collect();
 
     for entity in to_despawn {
         if world.get_entity(entity).is_ok() {
             world.despawn(entity);
+        }
+    }
+
+    // Decal-Map leeren
+    if let Some(mut decal_map) = world.get_resource_mut::<crate::systems::ground_decals::GroundDecalMap>() {
+        let handle = decal_map.image_handle.clone();
+        decal_map.pending_stamps.clear();
+        decal_map.dirty = false;
+        if let Some(mut images) = world.get_resource_mut::<Assets<Image>>() {
+            if let Some(image) = images.get_mut(&handle) {
+                if let Some(data) = image.data.as_mut() {
+                    data.fill(0);
+                }
+            }
         }
     }
 

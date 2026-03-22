@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::components::*;
 use crate::constants::*;
 use crate::resources::GameSettings;
+use super::ground_decals::{DecalStamp, GroundDecalMap};
 use rand::Rng;
 
 pub fn bullet_movement(
@@ -194,6 +195,7 @@ pub fn spawn_explosion(commands: &mut Commands, pos: Vec3, radius: f32, damage: 
 pub fn explosion_update(
     mut commands: Commands,
     time: Res<Time>,
+    mut decal_map: ResMut<GroundDecalMap>,
     mut query: Query<(Entity, &mut Explosion, &mut Sprite, &mut Transform, Option<&Children>)>,
     mut ring_query: Query<(&mut Sprite, &mut Transform), (With<ShockwaveRing>, Without<Explosion>)>,
 ) {
@@ -249,6 +251,14 @@ pub fn explosion_update(
         }
 
         if explosion.lifetime.is_finished() {
+            // Brandfleck auf Boden stempeln
+            if explosion.level > 0 {
+                let pos = transform.translation.truncate();
+                decal_map.pending_stamps.push(DecalStamp::Burn {
+                    position: pos,
+                    radius: radius,
+                });
+            }
             commands.entity(entity).try_despawn();
         }
     }

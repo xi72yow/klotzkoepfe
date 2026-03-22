@@ -38,6 +38,7 @@ fn main() {
                 player::spawn_players,
                 hud::setup_hud,
                 crates::setup_base_crates,
+                ground_decals::setup_ground_decals,
             ),
         )
         // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
@@ -120,6 +121,11 @@ fn main() {
                 zombie::freeze_stack_system,
                 zombie::lightning_arc_system,
             )
+                .run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
+            ground_decals::process_decal_stamps
                 .run_if(in_state(GameState::Playing)),
         )
         // Game Over
