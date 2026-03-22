@@ -42,13 +42,22 @@ fn fbm(p: vec2<f32>) -> f32 {
     return value;
 }
 
+// UV-Koordinaten auf Pixel-Grid snappen
+fn pixelate(uv: vec2<f32>, grid: f32) -> vec2<f32> {
+    return floor(uv * grid) / grid;
+}
+
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    let uv = (mesh.uv - vec2(0.5)) * 2.0; // -1..1
-    let dist = length(uv);
-    let angle = atan2(uv.y, uv.x);
     let t = params.progress;
     let level_f = params.level;
+
+    // Pixel-Grid: grobes Raster fuer blockigen Look
+    let grid_size = 24.0 + level_f * 4.0;
+    let raw_uv = (mesh.uv - vec2(0.5)) * 2.0; // -1..1
+    let uv = pixelate(raw_uv, grid_size);
+    let dist = length(uv);
+    let angle = atan2(uv.y, uv.x);
 
     // Alles ausserhalb des Einheitskreises sofort verwerfen
     if dist > 1.0 {
@@ -59,48 +68,47 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     var expand: f32;
     if t < 0.25 {
         let phase = t / 0.25;
-        expand = 1.0 - (1.0 - phase) * (1.0 - phase); // ease-out
+        expand = 1.0 - (1.0 - phase) * (1.0 - phase);
     } else if t < 0.5 {
         expand = 1.0;
     } else {
         let phase = (t - 0.5) / 0.5;
-        expand = 1.0 - phase * 0.4; // langsam schrumpfen
+        expand = 1.0 - phase * 0.4;
     }
 
-    // --- Dynamischer Feuerball-Rand mit animiertem Noise ---
-    // Polar-Noise: verzerrt den Rand winkelabhaengig fuer organische Form
-    let polar_noise = fbm(vec2(angle * 2.0 + t * 4.0, t * 6.0)) * 0.25;
-    // Radiales Noise: kleine Beulen/Dellen
-    let radial_noise = fbm(uv * (3.0 + level_f) + vec2(t * 5.0, -t * 3.0)) * 0.2;
-    // Feines Detail-Noise fuer Flammen-Textur
-    let detail = noise(uv * (8.0 + level_f * 3.0) - vec2(t * 8.0, t * 6.0)) * 0.1;
+    // --- Grober Noise fuer blockige Feuerballen ---
+    // Weniger Oktaven, niedrigere Frequenz = groessere Bloecke
+    let polar_noise = noise(vec2(angle * 1.5 + t * 3.0, t * 4.0)) * 0.3;
+    let radial_noise = noise(uv * (2.0 + level_f) + vec2(t * 3.0, -t * 2.0)) * 0.25;
 
     let fire_radius = expand * 0.7;
-    let fire_edge = fire_radius + polar_noise + radial_noise + detail;
+    let fire_edge = fire_radius + polar_noise + radial_noise;
 
-    // Weicher Rand
-    let fire_mask = smoothstep(fire_edge, fire_edge * 0.2, dist);
+    // Harter Rand statt smoothstep
+    let fire_mask = select(0.0, 1.0, dist < fire_edge);
 
-    // --- Farbe ---
-    // Innen -> Aussen: weiss-gelb -> orange -> rot-dunkel
-    let color_t = smoothstep(0.0, fire_edge * 0.9, dist);
-    var fire_color = mix(params.color_inner, params.color_outer, color_t * color_t);
+    // --- Farbe: gestufte Farbbaender statt smooth gradient ---
+    let color_raw = dist / max(fire_edge, 0.01);
+    // 4 diskrete Farbstufen
+    let color_t = floor(color_raw * 4.0) / 4.0;
+    var fire_color = mix(params.color_inner, params.color_outer, color_t);
 
-    // Heller Kern pulsiert leicht
-    let core_pulse = 0.5 + 0.5 * sin(t * 20.0);
-    let core_bright = smoothstep(0.35, 0.0, dist) * smoothstep(0.35, 0.0, t);
-    fire_color = mix(fire_color, vec4(1.0, 1.0, 0.9, 1.0), core_bright * (0.5 + 0.2 * core_pulse));
+    // Heller Kern
+    let core_mask = select(0.0, 1.0, dist < fire_edge * 0.25);
+    let core_fade = select(0.0, 1.0, t < 0.3);
+    fire_color = mix(fire_color, vec4(1.0, 1.0, 0.9, 1.0), core_mask * core_fade * 0.7);
 
-    // Flammen-Textur: dunklere Streifen im Feuer
-    let flame_tex = fbm(uv * 5.0 + vec2(t * 7.0, t * -4.0));
-    fire_color = fire_color * (0.7 + 0.3 * flame_tex);
+    // Blockige Flammen-Textur
+    let flame_tex = noise(uv * 3.0 + vec2(t * 5.0, t * -3.0));
+    let flame_step = floor(flame_tex * 3.0) / 3.0;
+    fire_color = fire_color * (0.65 + 0.35 * flame_step);
 
-    // --- Shockwave Ring ---
+    // --- Shockwave Ring (auch pixelig) ---
     let ring_speed = 1.2 + 0.3 * level_f;
     let ring_radius = t * ring_speed;
-    let ring_width = (0.08 + 0.02 * level_f) * (1.0 - t);
+    let ring_width = (0.1 + 0.03 * level_f) * (1.0 - t);
     let ring_dist = abs(dist - ring_radius);
-    let ring_mask = smoothstep(ring_width, 0.0, ring_dist) * (1.0 - t * t) * 0.5;
+    let ring_mask = select(0.0, 1.0, ring_dist < ring_width) * (1.0 - t * t) * 0.5;
     let ring_color = vec4(1.0, 0.65, 0.15, ring_mask);
 
     // --- Kombination ---
@@ -110,8 +118,8 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         max(final_color.a, ring_color.a)
     );
 
-    // Global fade
-    let fade = smoothstep(1.0, 0.5, t);
+    // Global fade - auch gestuft
+    let fade = select(0.0, 1.0, t < 0.7) * (1.0 - step(0.9, t) * 0.5);
     final_color.a = final_color.a * fade;
 
     if final_color.a < 0.01 {
