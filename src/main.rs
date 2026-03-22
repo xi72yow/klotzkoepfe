@@ -12,8 +12,6 @@ use systems::*;
 
 fn main() {
     let mut app = App::new();
-    embedded_asset!(app, "shaders/explosion.wgsl");
-    embedded_asset!(app, "shaders/pixelation.wgsl");
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Klotzkoepfe".to_string(),
@@ -22,8 +20,10 @@ fn main() {
                 ..default()
             }),
             ..default()
-        }))
-        .insert_resource(ClearColor(FLOOR_COLOR))
+        }));
+    embedded_asset!(app, "shaders/explosion.wgsl");
+    embedded_asset!(app, "shaders/pixelation.wgsl");
+    app.insert_resource(ClearColor(FLOOR_COLOR))
         .add_plugins(bevy::sprite_render::Material2dPlugin::<explosion_fx::ExplosionMaterial>::default())
         .add_plugins(bevy::core_pipeline::fullscreen_material::FullscreenMaterialPlugin::<pixelation::PixelationMaterial>::default())
         .init_state::<GameState>()
