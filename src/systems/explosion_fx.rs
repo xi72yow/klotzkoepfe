@@ -75,7 +75,7 @@ pub fn spawn_shader_explosion(
     });
 
     // Mesh etwas groesser als Radius damit Shockwave-Ring Platz hat
-    let mesh_size = radius * 1.8 * (1.0 + 0.3 * level_f);
+    let mesh_size = radius * 2.0;
     let mesh = meshes.add(Rectangle::new(mesh_size, mesh_size));
 
     commands.spawn((
