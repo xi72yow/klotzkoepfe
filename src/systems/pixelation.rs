@@ -46,7 +46,7 @@ impl ExtractComponent for PixelationMaterial {
 
 impl FullscreenMaterial for PixelationMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/pixelation.wgsl".into()
+        "embedded://klotzkoepfe/shaders/pixelation.wgsl".into()
     }
 
     fn node_edges() -> Vec<InternedRenderLabel> {

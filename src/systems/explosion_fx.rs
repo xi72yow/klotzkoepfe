@@ -8,8 +8,6 @@ use crate::components::*;
 use crate::constants::*;
 use super::ground_decals::{DecalStamp, GroundDecalMap};
 
-const SHADER_PATH: &str = "shaders/explosion.wgsl";
-
 /// Uniform-Daten fuer den Explosions-Shader
 #[derive(Clone, Copy, ShaderType)]
 pub struct ExplosionParams {
@@ -30,7 +28,7 @@ pub struct ExplosionMaterial {
 
 impl Material2d for ExplosionMaterial {
     fn fragment_shader() -> ShaderRef {
-        SHADER_PATH.into()
+        "embedded://klotzkoepfe/shaders/explosion.wgsl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode2d {

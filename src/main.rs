@@ -3,6 +3,7 @@ mod constants;
 mod resources;
 mod systems;
 
+use bevy::asset::embedded_asset;
 use bevy::prelude::*;
 
 use constants::*;
@@ -10,8 +11,10 @@ use resources::*;
 use systems::*;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
+    let mut app = App::new();
+    embedded_asset!(app, "shaders/explosion.wgsl");
+    embedded_asset!(app, "shaders/pixelation.wgsl");
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Klotzkoepfe".to_string(),
                 resolution: bevy::window::WindowResolution::new(WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
