@@ -324,6 +324,7 @@ pub struct GrenadeProjectile {
     pub damage: f32,
     pub fuse: Timer,
     pub explosion_radius: f32,
+    pub level: u32,
 }
 
 #[derive(Component)]
@@ -331,6 +332,7 @@ pub struct RocketProjectile {
     pub damage: f32,
     pub explosion_radius: f32,
     pub range_remaining: f32,
+    pub level: u32,
 }
 
 #[derive(Component)]
@@ -362,7 +364,11 @@ pub struct Explosion {
     pub damage: f32,
     pub radius: f32,
     pub damaged: bool,
+    pub level: u32,
 }
+
+#[derive(Component)]
+pub struct ShockwaveRing;
 
 #[derive(Component)]
 pub struct BloodParticle {

@@ -4,6 +4,10 @@ use crate::components::Wall;
 use crate::constants::*;
 
 pub fn setup_room(mut commands: Commands) {
+    do_setup_room(&mut commands);
+}
+
+pub fn do_setup_room(commands: &mut Commands) {
     // Boden
     commands.spawn((
         Sprite {

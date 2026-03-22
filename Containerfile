@@ -8,12 +8,10 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /build
 
-# Cache dependencies by copying manifests first
-COPY Cargo.toml Cargo.lock* ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release 2>/dev/null; rm -rf src
-
-# Copy actual source and build
-COPY src/ src/
-RUN cargo build --release
+# Pre-compile dependencies with dummy source
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build --release \
+    && rm -rf src target/release/.fingerprint/klotzkoepfe-* target/release/deps/klotzkoepfe-* target/release/klotzkoepfe*

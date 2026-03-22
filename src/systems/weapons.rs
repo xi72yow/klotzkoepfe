@@ -36,20 +36,13 @@ pub fn mine_system(
 
         if triggered {
             // Explosion spawnen
-            commands.spawn((
-                Sprite {
-                    color: EXPLOSION_COLOR,
-                    custom_size: Some(Vec2::splat(mine.radius * 2.0)),
-                    ..default()
-                },
-                Transform::from_translation(mine_transform.translation),
-                Explosion {
-                    lifetime: Timer::from_seconds(EXPLOSION_LIFETIME, TimerMode::Once),
-                    damage: mine.damage,
-                    radius: mine.radius,
-                    damaged: false,
-                },
-            ));
+            crate::systems::bullet::spawn_explosion(
+                &mut commands,
+                mine_transform.translation,
+                mine.radius,
+                mine.damage,
+                1,
+            );
             commands.entity(mine_entity).despawn();
         }
     }

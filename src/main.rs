@@ -43,7 +43,7 @@ fn main() {
         // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
         .add_systems(
             OnEnter(GameState::Restarting),
-            (hud::restart_despawn, hud::restart_spawn).chain(),
+            hud::restart_game,
         )
         // Pause-Toggle und Fullscreen laufen immer
         .add_systems(Update, (hud::pause_toggle, fullscreen_toggle))

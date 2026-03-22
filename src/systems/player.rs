@@ -6,9 +6,13 @@ use crate::constants::*;
 use crate::resources::*;
 
 pub fn spawn_players(mut commands: Commands, settings: Res<GameSettings>) {
-    spawn_one_player(&mut commands, &settings, PlayerId::P1, -80.0, PLAYER_COLOR_P1, Vec2::X);
+    do_spawn_players(&mut commands, &settings);
+}
+
+pub fn do_spawn_players(commands: &mut Commands, settings: &GameSettings) {
+    spawn_one_player(commands, settings, PlayerId::P1, -80.0, PLAYER_COLOR_P1, Vec2::X);
     if settings.player_count >= 2 {
-        spawn_one_player(&mut commands, &settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
+        spawn_one_player(commands, settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
     }
 }
 
@@ -360,6 +364,7 @@ pub fn player_shoot(
                             damage: ws.damage,
                             fuse: Timer::from_seconds(ws.range / ws.bullet_speed, TimerMode::Once),
                             explosion_radius: settings.explosion_radius,
+                            level: lvl,
                         },
                         Velocity(dir * ws.bullet_speed),
                         BulletOwner(player.id),
@@ -374,6 +379,7 @@ pub fn player_shoot(
                             damage: ws.damage,
                             explosion_radius: expl_r,
                             range_remaining: ws.range,
+                            level: lvl,
                         },
                         Velocity(dir * ws.bullet_speed),
                         BulletOwner(player.id),

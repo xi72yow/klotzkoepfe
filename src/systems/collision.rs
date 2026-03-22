@@ -211,6 +211,7 @@ pub fn bullet_zombie_collision(
                                         damage: tb.chain_damage,
                                         radius: 15.0,
                                         damaged: false,
+                                        level: 0,
                                     },
                                 ));
                             }
@@ -263,7 +264,8 @@ pub fn explosion_zombie_collision(
             let zombie_pos = zombie_transform.translation.truncate();
             let dist = expl_pos.distance(zombie_pos);
             if dist < explosion.radius {
-                let falloff = 1.0 - (dist / explosion.radius);
+                let t = dist / explosion.radius;
+                let falloff = (1.0 - t * t).max(0.0); // quadratic falloff: full damage at center
                 health.current -= explosion.damage * falloff;
                 spawn_blood(&mut commands, zombie_pos);
                 if health.current <= 0.0 {
@@ -304,7 +306,8 @@ pub fn explosion_player_collision(
             let player_pos = player_transform.translation.truncate();
             let dist = expl_pos.distance(player_pos);
             if dist < explosion.radius {
-                let falloff = 1.0 - (dist / explosion.radius);
+                let t = dist / explosion.radius;
+                let falloff = (1.0 - t * t).max(0.0);
                 health.current -= explosion.damage * falloff;
                 spawn_blood(&mut commands, player_pos);
                 // Reset regen cooldown

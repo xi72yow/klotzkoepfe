@@ -10,6 +10,10 @@ const LIGHT_SIZE: f32 = 3.0;
 
 /// Spawn base crate spawners at fixed positions (called at startup/restart)
 pub fn setup_base_crates(mut commands: Commands, settings: Res<GameSettings>) {
+    do_setup_base_crates(&mut commands, &settings);
+}
+
+pub fn do_setup_base_crates(commands: &mut Commands, settings: &GameSettings) {
     let positions = [
         Vec2::new(-200.0, 150.0),
         Vec2::new(200.0, 150.0),

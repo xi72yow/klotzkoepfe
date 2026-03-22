@@ -95,20 +95,8 @@ pub fn grenade_movement(
         if grenade.fuse.is_finished() {
             let pos = transform.translation;
             let radius = grenade.explosion_radius;
-            commands.spawn((
-                Sprite {
-                    color: EXPLOSION_COLOR,
-                    custom_size: Some(Vec2::new(radius * 2.0, radius * 2.0)),
-                    ..default()
-                },
-                Transform::from_translation(pos),
-                Explosion {
-                    lifetime: Timer::from_seconds(EXPLOSION_LIFETIME, TimerMode::Once),
-                    damage: grenade.damage,
-                    radius,
-                    damaged: false,
-                },
-            ));
+            let level = grenade.level;
+            spawn_explosion(&mut commands, pos, radius, grenade.damage, level);
             commands.entity(entity).despawn();
         }
     }
@@ -157,40 +145,112 @@ pub fn rocket_movement(
         if explode {
             let pos = transform.translation;
             let radius = rocket.explosion_radius;
-            commands.spawn((
-                Sprite {
-                    color: EXPLOSION_COLOR,
-                    custom_size: Some(Vec2::new(radius * 2.0, radius * 2.0)),
-                    ..default()
-                },
-                Transform::from_translation(pos),
-                Explosion {
-                    lifetime: Timer::from_seconds(EXPLOSION_LIFETIME, TimerMode::Once),
-                    damage: rocket.damage,
-                    radius,
-                    damaged: false,
-                },
-            ));
+            let level = rocket.level;
+            spawn_explosion(&mut commands, pos, radius, rocket.damage, level);
             commands.entity(entity).despawn();
         }
     }
+}
+
+/// Spawn an explosion with visual effects scaled by level
+pub fn spawn_explosion(commands: &mut Commands, pos: Vec3, radius: f32, damage: f32, level: u32) {
+    let level_f = level.max(1) as f32;
+    // Higher levels get longer lifetime for more dramatic effect
+    let lifetime = EXPLOSION_LIFETIME + 0.1 * (level_f - 1.0);
+
+    // Core explosion (starts small, expands)
+    commands
+        .spawn((
+            Sprite {
+                color: EXPLOSION_COLOR,
+                custom_size: Some(Vec2::splat(0.1)),
+                ..default()
+            },
+            Transform::from_translation(pos.truncate().extend(15.0)),
+            Explosion {
+                lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+                damage,
+                radius,
+                damaged: false,
+                level,
+            },
+        ))
+        .with_children(|parent| {
+            if level > 0 {
+                // Shockwave ring
+                parent.spawn((
+                    Sprite {
+                        color: Color::srgba(1.0, 0.8, 0.3, 0.6),
+                        custom_size: Some(Vec2::splat(0.1)),
+                        ..default()
+                    },
+                    Transform::from_xyz(0.0, 0.0, 1.0),
+                    ShockwaveRing,
+                ));
+            }
+        });
 }
 
 pub fn explosion_update(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut Explosion, &mut Sprite)>,
+    mut query: Query<(Entity, &mut Explosion, &mut Sprite, &mut Transform, Option<&Children>)>,
+    mut ring_query: Query<(&mut Sprite, &mut Transform), (With<ShockwaveRing>, Without<Explosion>)>,
 ) {
-    for (entity, mut explosion, mut sprite) in query.iter_mut() {
+    for (entity, mut explosion, mut sprite, mut transform, children) in query.iter_mut() {
         explosion.lifetime.tick(time.delta());
+        let frac = explosion.lifetime.fraction();
+        let level_f = explosion.level.max(1) as f32;
+        let radius = explosion.radius;
 
-        // Ausblenden
-        let ratio = 1.0 - explosion.lifetime.fraction();
-        let alpha = 1.0 - ratio;
-        sprite.color = Color::srgba(1.0, 0.5 * alpha, 0.0, alpha);
+        // Phase 1: Rapid expansion (0..0.3)
+        // Phase 2: Hold + color shift (0.3..0.6)
+        // Phase 3: Fade out + shrink (0.6..1.0)
+        let (size_mult, alpha, r, g, b) = if frac < 0.3 {
+            // Expand quickly with bright white-yellow core
+            let t = frac / 0.3;
+            let ease = 1.0 - (1.0 - t) * (1.0 - t); // ease-out quad
+            (ease, 1.0, 1.0, 0.8 + 0.2 * (1.0 - t), 0.3 + 0.4 * (1.0 - t))
+        } else if frac < 0.6 {
+            // Hold size, shift from yellow to orange
+            let t = (frac - 0.3) / 0.3;
+            (1.0, 1.0, 1.0, 0.5 + 0.3 * (1.0 - t), 0.1 * (1.0 - t))
+        } else {
+            // Fade out and shrink slightly
+            let t = (frac - 0.6) / 0.4;
+            let alpha = (1.0 - t * t).max(0.0);
+            let shrink = 1.0 - 0.2 * t;
+            (shrink, alpha, 1.0, 0.3 * (1.0 - t), 0.0)
+        };
+
+        let display_size = radius * 2.0 * size_mult;
+        sprite.custom_size = Some(Vec2::splat(display_size));
+        sprite.color = Color::srgba(r, g, b, alpha);
+
+        // Slight screen-shake feel via scale pulse at higher levels
+        let pulse = 1.0 + 0.05 * level_f * (frac * 30.0).sin() * (1.0 - frac);
+        transform.scale = Vec3::splat(pulse);
+
+        // Shockwave ring: expands outward, thins and fades
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok((mut ring_sprite, mut ring_transform)) = ring_query.get_mut(child) {
+                    let ring_expand = 1.0 + 0.8 * level_f;
+                    let ring_size = radius * 2.0 * frac * ring_expand;
+                    let ring_alpha = (1.0 - frac * frac) * 0.5;
+                    let thickness = (4.0 + 2.0 * level_f) * (1.0 - frac);
+
+                    ring_sprite.custom_size = Some(Vec2::new(ring_size, thickness.max(1.0)));
+                    ring_sprite.color = Color::srgba(1.0, 0.6, 0.1, ring_alpha);
+                    ring_transform.scale = Vec3::new(1.0, ring_size / thickness.max(1.0), 1.0);
+                    ring_transform.rotation = Quat::from_rotation_z(frac * std::f32::consts::PI * 2.0);
+                }
+            }
+        }
 
         if explosion.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
+

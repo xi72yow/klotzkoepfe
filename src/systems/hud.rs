@@ -263,7 +263,7 @@ pub fn game_over_input(
     }
 }
 
-pub fn restart_despawn(world: &mut World) {
+pub fn restart_game(world: &mut World) {
     // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
     let to_despawn: Vec<Entity> = world
         .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>)>>()
@@ -282,18 +282,19 @@ pub fn restart_despawn(world: &mut World) {
     *world.resource_mut::<ComboMeter>() = ComboMeter::default();
     *world.resource_mut::<crate::systems::weapons::UnlockedWeapons>() =
         crate::systems::weapons::UnlockedWeapons::default();
-}
 
-pub fn restart_spawn(
-    mut commands: Commands,
-    mut next_state: ResMut<NextState<GameState>>,
-    settings: Res<GameSettings>,
-) {
-    crate::systems::room::setup_room(commands.reborrow());
-    crate::systems::player::spawn_players(commands.reborrow(), settings.clone());
-    crate::systems::crates::setup_base_crates(commands.reborrow(), settings);
-    setup_hud(commands);
-    next_state.set(GameState::Playing);
+    // Neu spawnen ueber Commands + flush, damit alles sofort existiert
+    let settings = world.resource::<GameSettings>().clone();
+    {
+        let mut commands = world.commands();
+        crate::systems::room::do_setup_room(&mut commands);
+        crate::systems::crates::do_setup_base_crates(&mut commands, &settings);
+        crate::systems::player::do_spawn_players(&mut commands, &settings);
+        setup_hud(commands);
+    }
+    world.flush();
+
+    world.resource_mut::<NextState<GameState>>().set(GameState::Playing);
 }
 
 
