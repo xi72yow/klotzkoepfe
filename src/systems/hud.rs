@@ -267,7 +267,7 @@ pub fn restart_game(world: &mut World) {
     // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
     // GroundDecalLayer bleibt erhalten (Textur wird nur geleert)
     let to_despawn: Vec<Entity> = world
-        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>)>>()
+        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>, With<ShaderExplosion>)>>()
         .iter(world)
         .filter(|e| !world.get::<GroundDecalLayer>(*e).is_some())
         .collect();

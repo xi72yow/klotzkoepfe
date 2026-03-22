@@ -4,6 +4,7 @@ use crate::components::*;
 use crate::constants::*;
 use crate::resources::GameSettings;
 use super::ground_decals::{DecalStamp, GroundDecalMap};
+use super::explosion_fx::{self, ExplosionMaterial};
 use rand::Rng;
 
 pub fn bullet_movement(
@@ -35,6 +36,8 @@ pub fn grenade_movement(
     mut commands: Commands,
     time: Res<Time>,
     _settings: Res<GameSettings>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &mut Velocity, &mut GrenadeProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<GrenadeProjectile>)>,
 ) {
@@ -97,7 +100,8 @@ pub fn grenade_movement(
             let pos = transform.translation;
             let radius = grenade.explosion_radius;
             let level = grenade.level;
-            spawn_explosion(&mut commands, pos, radius, grenade.damage, level);
+            spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, grenade.damage, level);
+            spawn_shrapnel(&mut commands, pos.truncate(), grenade.damage, level);
             commands.entity(entity).despawn();
         }
     }
@@ -106,6 +110,8 @@ pub fn grenade_movement(
 pub fn rocket_movement(
     mut commands: Commands,
     time: Res<Time>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &Velocity, &mut RocketProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<RocketProjectile>)>,
 ) {
@@ -147,21 +153,29 @@ pub fn rocket_movement(
             let pos = transform.translation;
             let radius = rocket.explosion_radius;
             let level = rocket.level;
-            spawn_explosion(&mut commands, pos, radius, rocket.damage, level);
+            spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, rocket.damage, level);
             commands.entity(entity).despawn();
         }
     }
 }
 
-/// Spawn an explosion with visual effects scaled by level
-pub fn spawn_explosion(commands: &mut Commands, pos: Vec3, radius: f32, damage: f32, level: u32) {
-    let level_f = level.max(1) as f32;
-    // Higher levels get longer lifetime for more dramatic effect
-    let lifetime = EXPLOSION_LIFETIME + 0.1 * (level_f - 1.0);
-
-    // Core explosion (starts small, expands)
-    commands
-        .spawn((
+/// Spawn an explosion - Shader fuer echte Explosionen (level > 0), Sprite fuer Tesla etc.
+pub fn spawn_explosion(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ExplosionMaterial>,
+    pos: Vec3,
+    radius: f32,
+    damage: f32,
+    level: u32,
+) {
+    if level > 0 {
+        // Shader-Explosion fuer Granaten, Raketen, Minen
+        explosion_fx::spawn_shader_explosion(commands, meshes, materials, pos, radius, damage, level);
+    } else {
+        // Einfache Sprite-Explosion fuer Tesla-Chain etc.
+        let lifetime = EXPLOSION_LIFETIME;
+        commands.spawn((
             Sprite {
                 color: EXPLOSION_COLOR,
                 custom_size: Some(Vec2::splat(0.1)),
@@ -175,21 +189,8 @@ pub fn spawn_explosion(commands: &mut Commands, pos: Vec3, radius: f32, damage: 
                 damaged: false,
                 level,
             },
-        ))
-        .with_children(|parent| {
-            if level > 0 {
-                // Shockwave ring
-                parent.spawn((
-                    Sprite {
-                        color: Color::srgba(1.0, 0.8, 0.3, 0.6),
-                        custom_size: Some(Vec2::splat(0.1)),
-                        ..default()
-                    },
-                    Transform::from_xyz(0.0, 0.0, 1.0),
-                    ShockwaveRing,
-                ));
-            }
-        });
+        ));
+    }
 }
 
 pub fn explosion_update(
@@ -264,3 +265,37 @@ pub fn explosion_update(
     }
 }
 
+/// Spawnt Schrapnell-Splitter die von der Explosion wegfliegen und Damage machen
+fn spawn_shrapnel(commands: &mut Commands, pos: Vec2, base_damage: f32, level: u32) {
+    let mut rng = rand::rng();
+    let count = 4 + level as i32 * 3 + rng.random_range(0..3);
+    let shard_damage = base_damage * 0.3;
+    let shard_speed = 250.0 + level as f32 * 50.0;
+    let shard_range = 80.0 + level as f32 * 30.0;
+
+    for _ in 0..count {
+        let angle = rng.random_range(0.0..std::f32::consts::TAU);
+        let speed = rng.random_range(shard_speed * 0.6..shard_speed);
+        let dir = Vec2::new(angle.cos(), angle.sin());
+        let size = Vec2::new(
+            rng.random_range(2.0..4.0),
+            rng.random_range(1.0..2.0),
+        );
+
+        commands.spawn((
+            Sprite {
+                color: Color::srgb(0.6, 0.6, 0.65),
+                custom_size: Some(size),
+                ..default()
+            },
+            Transform::from_xyz(pos.x, pos.y, 12.0)
+                .with_rotation(Quat::from_rotation_z(angle)),
+            Bullet {
+                damage: shard_damage,
+                range_remaining: rng.random_range(shard_range * 0.5..shard_range),
+                pierce_remaining: 0,
+            },
+            Velocity(dir * speed),
+        ));
+    }
+}

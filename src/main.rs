@@ -21,6 +21,7 @@ fn main() {
             ..default()
         }))
         .insert_resource(ClearColor(FLOOR_COLOR))
+        .add_plugins(bevy::sprite_render::Material2dPlugin::<explosion_fx::ExplosionMaterial>::default())
         .init_state::<GameState>()
         .init_resource::<WaveState>()
         .init_resource::<Score>()
@@ -125,7 +126,10 @@ fn main() {
         )
         .add_systems(
             Update,
-            ground_decals::process_decal_stamps
+            (
+                explosion_fx::update_shader_explosions,
+                ground_decals::process_decal_stamps,
+            )
                 .run_if(in_state(GameState::Playing)),
         )
         // Game Over

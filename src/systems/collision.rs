@@ -252,24 +252,34 @@ pub fn explosion_zombie_collision(
     mut combo: ResMut<ComboMeter>,
     settings: Res<GameSettings>,
     mut explosion_query: Query<(&Transform, &mut Explosion)>,
+    mut shader_explosion_query: Query<(&Transform, &mut ShaderExplosion), Without<Explosion>>,
     mut zombie_query: Query<(Entity, &Transform, &mut Health, Option<&Children>), With<Zombie>>,
     sprite_query: Query<(&Sprite, &Transform), (Without<Zombie>, Without<Player>)>,
 ) {
+    // Sammle alle Explosions-Daten (alte Sprite + neue Shader)
+    let mut explosions: Vec<(Vec2, f32, f32)> = Vec::new();
+
     for (expl_transform, mut explosion) in explosion_query.iter_mut() {
         if explosion.damaged { continue; }
         explosion.damaged = true;
-        let expl_pos = expl_transform.translation.truncate();
+        explosions.push((expl_transform.translation.truncate(), explosion.radius, explosion.damage));
+    }
+    for (expl_transform, mut explosion) in shader_explosion_query.iter_mut() {
+        if explosion.damaged { continue; }
+        explosion.damaged = true;
+        explosions.push((expl_transform.translation.truncate(), explosion.radius, explosion.damage));
+    }
 
+    for (expl_pos, radius, damage) in explosions {
         for (zombie_entity, zombie_transform, mut health, children) in zombie_query.iter_mut() {
             let zombie_pos = zombie_transform.translation.truncate();
             let dist = expl_pos.distance(zombie_pos);
-            if dist < explosion.radius {
-                let t = dist / explosion.radius;
-                let falloff = (1.0 - t * t).max(0.0); // quadratic falloff: full damage at center
-                health.current -= explosion.damage * falloff;
+            if dist < radius {
+                let t = dist / radius;
+                let falloff = (1.0 - t * t).max(0.0);
+                health.current -= damage * falloff;
                 spawn_blood(&mut commands, zombie_pos);
                 if health.current <= 0.0 {
-                    // Zombie explodiert
                     if let Some(ch) = children {
                         crate::systems::blood::zombie_explode(
                             &mut commands, zombie_pos, ch, &sprite_query,
@@ -293,24 +303,34 @@ pub fn explosion_player_collision(
     settings: Res<GameSettings>,
     mut wave: ResMut<WaveState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut explosion_query: Query<(&Transform, &mut Explosion)>,
-    mut player_query: Query<(Entity, &Player, &mut Health, &Transform, Option<&mut RegenCooldown>), Without<Explosion>>,
+    explosion_query: Query<(&Transform, &Explosion)>,
+    shader_explosion_query: Query<(&Transform, &ShaderExplosion), Without<Explosion>>,
+    mut player_query: Query<(Entity, &Player, &mut Health, &Transform, Option<&mut RegenCooldown>), (Without<Explosion>, Without<ShaderExplosion>)>,
 ) {
     if !settings.explosion_friendly_fire { return; }
 
-    for (expl_transform, explosion) in explosion_query.iter() {
-        if !explosion.damaged { continue; } // Only damage after zombie collision already processed
-        let expl_pos = expl_transform.translation.truncate();
+    // Sammle alle Explosions-Daten die bereits Zombie-Damage gemacht haben
+    let mut explosions: Vec<(Vec2, f32, f32)> = Vec::new();
+    for (t, e) in explosion_query.iter() {
+        if e.damaged {
+            explosions.push((t.translation.truncate(), e.radius, e.damage));
+        }
+    }
+    for (t, e) in shader_explosion_query.iter() {
+        if e.damaged {
+            explosions.push((t.translation.truncate(), e.radius, e.damage));
+        }
+    }
 
+    for (expl_pos, radius, damage) in explosions {
         for (entity, player, mut health, player_transform, regen) in player_query.iter_mut() {
             let player_pos = player_transform.translation.truncate();
             let dist = expl_pos.distance(player_pos);
-            if dist < explosion.radius {
-                let t = dist / explosion.radius;
+            if dist < radius {
+                let t = dist / radius;
                 let falloff = (1.0 - t * t).max(0.0);
-                health.current -= explosion.damage * falloff;
+                health.current -= damage * falloff;
                 spawn_blood(&mut commands, player_pos);
-                // Reset regen cooldown
                 if let Some(mut regen) = regen {
                     regen.timer = Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once);
                 }

@@ -5,6 +5,7 @@ use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
 use crate::systems::blood::spawn_blood;
+use crate::systems::explosion_fx::ExplosionMaterial;
 
 // --- Mine System ---
 pub fn mine_system(
@@ -14,6 +15,8 @@ pub fn mine_system(
     mut wave: ResMut<WaveState>,
     mut combo: ResMut<ComboMeter>,
     settings: Res<GameSettings>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut mine_query: Query<(Entity, &Transform, &mut MineEntity)>,
     mut zombie_query: Query<(Entity, &Transform, &mut Health), With<Zombie>>,
 ) {
@@ -38,6 +41,8 @@ pub fn mine_system(
             // Explosion spawnen
             crate::systems::bullet::spawn_explosion(
                 &mut commands,
+                &mut meshes,
+                &mut explosion_materials,
                 mine_transform.translation,
                 mine.radius,
                 mine.damage,

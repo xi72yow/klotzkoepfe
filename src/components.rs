@@ -452,6 +452,15 @@ pub struct CrateLight {
 pub struct GroundDecalLayer;
 
 #[derive(Component)]
+pub struct ShaderExplosion {
+    pub lifetime: Timer,
+    pub damage: f32,
+    pub radius: f32,
+    pub damaged: bool,
+    pub level: u32,
+}
+
+#[derive(Component)]
 pub struct BaseCrateSpawner {
     pub position: Vec2,
     pub respawn_timer: Timer,
