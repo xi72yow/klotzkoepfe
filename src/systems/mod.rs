@@ -1,6 +1,7 @@
 pub mod blood;
 pub mod explosion_fx;
 pub mod ground_decals;
+pub mod pixelation;
 pub mod bullet;
 pub mod collision;
 pub mod crates;

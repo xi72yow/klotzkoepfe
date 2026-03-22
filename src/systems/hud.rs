@@ -269,7 +269,10 @@ pub fn restart_game(world: &mut World) {
     let to_despawn: Vec<Entity> = world
         .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>, With<BaseCrateSpawner>, With<ShaderExplosion>)>>()
         .iter(world)
-        .filter(|e| !world.get::<GroundDecalLayer>(*e).is_some())
+        .filter(|e| {
+            world.get::<GroundDecalLayer>(*e).is_none()
+            && world.get::<crate::systems::pixelation::MainCamera>(*e).is_none()
+        })
         .collect();
 
     for entity in to_despawn {

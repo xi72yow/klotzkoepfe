@@ -22,6 +22,7 @@ fn main() {
         }))
         .insert_resource(ClearColor(FLOOR_COLOR))
         .add_plugins(bevy::sprite_render::Material2dPlugin::<explosion_fx::ExplosionMaterial>::default())
+        .add_plugins(bevy::core_pipeline::fullscreen_material::FullscreenMaterialPlugin::<pixelation::PixelationMaterial>::default())
         .init_state::<GameState>()
         .init_resource::<WaveState>()
         .init_resource::<Score>()
@@ -34,7 +35,7 @@ fn main() {
         .add_systems(
             Startup,
             (
-                setup_camera,
+                pixelation::setup_pixelation,
                 room::setup_room,
                 player::spawn_players,
                 hud::setup_hud,
@@ -47,8 +48,8 @@ fn main() {
             OnEnter(GameState::Restarting),
             hud::restart_game,
         )
-        // Pause-Toggle und Fullscreen laufen immer
-        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle))
+        // Pause-Toggle, Fullscreen und Pixelation laufen immer
+        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, pixelation::update_pixelation))
         // Settings-UI nur im Pause-State
         .add_systems(
             Update,
@@ -139,10 +140,6 @@ fn main() {
             hud::game_over_input.run_if(in_state(GameState::GameOver)),
         )
         .run();
-}
-
-fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2d);
 }
 
 fn fullscreen_toggle(

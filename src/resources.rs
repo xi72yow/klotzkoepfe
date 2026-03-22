@@ -217,6 +217,11 @@ pub struct GameSettings {
     #[serde(default)]
     pub fullscreen: bool,
 
+    #[serde(default)]
+    pub pixelation_enabled: bool,
+    #[serde(default = "default_pixel_size")]
+    pub pixel_size: f32,
+
     // Gore-Settings
     #[serde(default = "default_blood_particles")]
     pub blood_particles: u32,
@@ -228,6 +233,7 @@ pub struct GameSettings {
     pub gib_decay_time: f32,
 }
 
+fn default_pixel_size() -> f32 { 1.3 }
 fn default_player_count() -> u32 { 1 }
 fn default_regen_delay() -> f32 { 5.0 }
 fn default_true() -> bool { true }
@@ -635,6 +641,8 @@ impl Default for GameSettings {
             knockback_strength_player: 200.0,
             knockback_duration: 0.15,
             fullscreen: false,
+            pixelation_enabled: false,
+            pixel_size: 1.3,
             blood_particles: 4,
             blood_spread_speed: 100.0,
             dismember_chance: 0.30,
