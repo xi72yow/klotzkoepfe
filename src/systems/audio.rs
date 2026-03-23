@@ -101,46 +101,70 @@ pub fn play_sounds(
     if vol <= 0.0 { queue.0.clear(); return; }
     let events: Vec<SoundEvent> = queue.0.drain(..).collect();
 
+    // Kategorie-Lautstaerke aus Settings
+    let vol_weapons = settings.vol_weapons;
+    let vol_enemies = settings.vol_enemies;
+    let vol_player = settings.vol_player;
+
+    // Sound-Stacking-Limiter: max Sounds pro Typ pro Frame
+    const MAX_ZOMBIE_DEATHS: u32 = 2;
+    const MAX_ZOMBIE_GROANS: u32 = 2;
+    const MAX_EXPLOSIONS: u32 = 2;
+    const MAX_SHOOTS: u32 = 3;
+    let mut zombie_death_count: u32 = 0;
+    let mut zombie_groan_count: u32 = 0;
+    let mut explosion_count: u32 = 0;
+    let mut shoot_count: u32 = 0;
+
     for event in events.iter() {
-        let (handle, vol_scale) = match event {
-            SoundEvent::Shoot(w) => match w {
-                WeaponType::Pistol => (&audio.shoot_pistol, 0.5),
-                WeaponType::Uzi => (&audio.shoot_uzi, 0.4),
-                WeaponType::Shotgun => (&audio.shoot_shotgun, 0.5),
-                WeaponType::Rocket => (&audio.shoot_rocket, 0.5),
-                WeaponType::Railgun => (&audio.shoot_pistol, 0.4),
-                WeaponType::Grenade => (&audio.shoot_pistol, 0.3),
-                _ => continue,
+        let (handle, vol_scale, category) = match event {
+            SoundEvent::Shoot(w) => {
+                shoot_count += 1;
+                if shoot_count > MAX_SHOOTS { continue; }
+                match w {
+                    WeaponType::Pistol => (&audio.shoot_pistol, 0.5, vol_weapons),
+                    WeaponType::Uzi => (&audio.shoot_uzi, 0.4, vol_weapons),
+                    WeaponType::Shotgun => (&audio.shoot_shotgun, 0.5, vol_weapons),
+                    WeaponType::Rocket => (&audio.shoot_rocket, 0.5, vol_weapons),
+                    WeaponType::Railgun => (&audio.shoot_pistol, 0.4, vol_weapons),
+                    WeaponType::Grenade => continue,
+                    _ => continue,
+                }
             },
-            SoundEvent::Reload => (&audio.reload, 0.5),
+            SoundEvent::Reload => (&audio.reload, 0.5, vol_weapons),
             SoundEvent::Explosion(etype) => {
+                explosion_count += 1;
+                if explosion_count > MAX_EXPLOSIONS { continue; }
                 let pool = match etype {
                     ExplosionType::Grenade => &audio.explosion_grenade,
                     ExplosionType::Rocket => &audio.explosion_rocket,
                     ExplosionType::Mine => &audio.explosion_mine,
                 };
                 let idx = pseudo_random() as usize % pool.len();
-                (&pool[idx], 0.6)
+                (&pool[idx], 0.6, vol_weapons)
             },
             SoundEvent::ZombieGroan(_) => {
+                zombie_groan_count += 1;
+                if zombie_groan_count > MAX_ZOMBIE_GROANS { continue; }
                 let idx = pseudo_random() as usize % audio.zombie_groans.len();
-                (&audio.zombie_groans[idx], 0.15)
+                (&audio.zombie_groans[idx], 0.3, vol_enemies)
             },
             SoundEvent::ZombieDeath => {
-                if pseudo_random() % 5 != 0 { continue; }
-                let idx = (pseudo_random() / 5) as usize % audio.zombie_deaths.len();
-                (&audio.zombie_deaths[idx], 0.2)
+                zombie_death_count += 1;
+                if zombie_death_count > MAX_ZOMBIE_DEATHS { continue; }
+                let idx = pseudo_random() as usize % audio.zombie_deaths.len();
+                (&audio.zombie_deaths[idx], 0.4, vol_enemies)
             },
-            SoundEvent::CratePickup
-            | SoundEvent::PlayerDamage
-            | SoundEvent::WaveStart
-            | SoundEvent::WeaponSwitch => continue,
+            SoundEvent::CratePickup => continue, // TODO: Sound hinzufuegen
+            SoundEvent::PlayerDamage => continue, // TODO: Sound hinzufuegen
+            SoundEvent::WaveStart => continue, // TODO: Sound hinzufuegen
+            SoundEvent::WeaponSwitch => continue, // TODO: Sound hinzufuegen
         };
         commands.spawn((
             AudioPlayer::new(handle.clone()),
             PlaybackSettings {
                 mode: bevy::audio::PlaybackMode::Despawn,
-                volume: bevy::audio::Volume::Linear(vol * vol_scale),
+                volume: bevy::audio::Volume::Linear(vol * category * vol_scale),
                 ..default()
             },
         ));
