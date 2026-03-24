@@ -230,40 +230,119 @@ pub fn update_hud(
     }
 }
 
-pub fn setup_game_over(mut commands: Commands, score: Res<Score>) {
-    commands.spawn((
-        Text2d::new("GAME OVER"),
-        TextFont { font_size: 64.0, ..default() },
-        TextColor(Color::srgb(0.8, 0.0, 0.0)),
-        Transform::from_xyz(0.0, 50.0, 30.0),
-        GameOverUi,
-    ));
-    commands.spawn((
-        Text2d::new(format!("Score: {} | Kills: {}", score.points, score.kills)),
-        TextFont { font_size: 32.0, ..default() },
-        TextColor(Color::WHITE),
-        Transform::from_xyz(0.0, -20.0, 30.0),
-        GameOverUi,
-    ));
-    commands.spawn((
-        Text2d::new("Press R to restart"),
-        TextFont { font_size: 24.0, ..default() },
-        TextColor(Color::srgb(0.7, 0.7, 0.7)),
-        Transform::from_xyz(0.0, -60.0, 30.0),
-        GameOverUi,
-    ));
+pub fn setup_game_over(mut commands: Commands, score: Res<Score>, wave: Res<WaveState>) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.75)),
+            GameOverUiRoot,
+        ))
+        .with_children(|root| {
+            root.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(15.0),
+                ..default()
+            })
+            .with_children(|panel| {
+                // GAME OVER
+                panel.spawn((
+                    Text::new("GAME OVER"),
+                    TextFont { font_size: 64.0, ..default() },
+                    TextColor(Color::srgb(0.8, 0.0, 0.0)),
+                ));
+
+                // Stats
+                panel.spawn((
+                    Text::new(format!(
+                        "Score: {} | Kills: {} | Wave: {}",
+                        score.points, score.kills, wave.current_wave
+                    )),
+                    TextFont { font_size: 32.0, ..default() },
+                    TextColor(Color::WHITE),
+                ));
+
+                // Spacer
+                panel.spawn(Node { height: Val::Px(10.0), ..default() });
+
+                // Restart Button
+                panel
+                    .spawn((
+                        Button,
+                        Node {
+                            padding: UiRect::axes(Val::Px(30.0), Val::Px(12.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.25, 0.25, 0.3)),
+                        RestartButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn((
+                            Text::new("Neustart"),
+                            TextFont { font_size: 24.0, ..default() },
+                            TextColor(Color::WHITE),
+                        ));
+                    });
+
+                // Hint
+                panel.spawn((
+                    Text::new("oder R druecken"),
+                    TextFont { font_size: 16.0, ..default() },
+                    TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                ));
+            });
+        });
 }
 
 pub fn game_over_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<GameState>>,
+    btn_query: Query<&Interaction, (Changed<Interaction>, With<RestartButton>)>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyR) {
         next_state.set(GameState::Restarting);
     }
+    for interaction in btn_query.iter() {
+        if *interaction == Interaction::Pressed {
+            next_state.set(GameState::Restarting);
+        }
+    }
+}
+
+pub fn cleanup_game_over(
+    mut commands: Commands,
+    query: Query<Entity, With<GameOverUiRoot>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).try_despawn();
+    }
 }
 
 pub fn restart_game(world: &mut World) {
+    // UI-Root-Entities despawnen (Children gehen automatisch mit)
+    let ui_roots: Vec<Entity> = world
+        .query_filtered::<Entity, Or<(
+            With<GameOverUiRoot>,
+            With<crate::systems::lobby_ui::LobbyUiRoot>,
+            With<crate::systems::debug_ui::PauseUiRoot>,
+            With<crate::systems::unlock_ui::UnlockUiRoot>,
+        )>>()
+        .iter(world)
+        .collect();
+    for entity in ui_roots {
+        if world.get_entity(entity).is_ok() {
+            world.despawn(entity);
+        }
+    }
+
     // Nur unsere Game-Entities despawnen (Sprites und Text), nicht Bevy-interne Rendering-Entities!
     // GroundDecalLayer bleibt erhalten (Textur wird nur geleert)
     let to_despawn: Vec<Entity> = world

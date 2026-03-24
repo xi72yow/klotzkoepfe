@@ -14,5 +14,6 @@ pub mod room;
 pub mod wave;
 pub mod weapons;
 pub mod unlock_ui;
+pub mod lobby_ui;
 pub mod elemental_overlay;
 pub mod zombie;

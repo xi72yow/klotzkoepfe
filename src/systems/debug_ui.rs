@@ -3,13 +3,46 @@ use bevy::prelude::*;
 use crate::resources::*;
 
 #[derive(Component)]
-pub struct SettingsPanel;
+pub struct PauseUiRoot;
+
+#[derive(Component)]
+pub struct SettingsPanel; // Legacy-Marker fuer cleanup_settings_panel
+
+#[derive(Component)]
+pub struct CategoryTab(pub usize);
+
+#[derive(Component)]
+pub struct SettingsValueText(pub usize); // Index in visible_indices
+
+#[derive(Component)]
+pub struct SettingsRowMarker(pub usize);
+
+#[derive(Component)]
+pub struct SettingsHelpText;
+
+#[derive(Component)]
+pub struct SettingsListContainer;
+
+#[derive(Component)]
+pub struct SaveButton;
+
+#[derive(Component)]
+pub struct DefaultsButton;
+
+#[derive(Component)]
+pub struct ResumeButton;
+
+#[derive(Component)]
+pub struct FeedbackText;
 
 #[derive(Resource)]
 pub struct SettingsUiState {
     pub selected: usize,
     pub repeat_timer: Timer,
     pub open_category: usize,
+    pub needs_rebuild: bool,
+    pub feedback_timer: f32,
+    pub feedback_message: String,
 }
 
 impl Default for SettingsUiState {
@@ -18,11 +51,14 @@ impl Default for SettingsUiState {
             selected: 0,
             repeat_timer: Timer::from_seconds(0.08, TimerMode::Once),
             open_category: 0,
+            needs_rebuild: false,
+            feedback_timer: 0.0,
+            feedback_message: String::new(),
         }
     }
 }
 
-// --- Datenmodell ---
+// --- Datenmodell (unveraendert) ---
 
 enum Item {
     Category(&'static str),
@@ -307,7 +343,6 @@ fn all_items() -> Vec<Item> {
 
 // --- Hilfsfunktionen ---
 
-/// Gibt (Kategorie-Indices, flache Entry-Liste mit globalem Index) zurueck
 fn build_categories(items: &[Item]) -> Vec<(usize, &'static str)> {
     items.iter().enumerate()
         .filter_map(|(i, item)| match item {
@@ -317,7 +352,6 @@ fn build_categories(items: &[Item]) -> Vec<(usize, &'static str)> {
         .collect()
 }
 
-/// Gibt nur die Value-Indices der offenen Kategorie zurueck
 fn visible_indices(items: &[Item], open_cat: usize) -> Vec<usize> {
     let cats = build_categories(items);
     if let Some((start_idx, _)) = cats.get(open_cat) {
@@ -330,13 +364,231 @@ fn visible_indices(items: &[Item], open_cat: usize) -> Vec<usize> {
     }
 }
 
-// --- Systeme ---
+fn format_value(val: f32, display: DisplayMode) -> String {
+    match display {
+        DisplayMode::Bool => if val >= 0.5 { "ON".into() } else { "OFF".into() },
+        DisplayMode::Percent => format!("{:.0}%", val),
+        DisplayMode::ReadOnly => format!("{:.2}", val),
+        DisplayMode::Float => format!("{:.2}", val),
+    }
+}
+
+// --- Farben ---
+
+const TAB_NORMAL: Color = Color::srgb(0.2, 0.2, 0.25);
+const TAB_ACTIVE: Color = Color::srgb(0.15, 0.4, 0.2);
+const TAB_HOVER: Color = Color::srgb(0.3, 0.3, 0.35);
+const ROW_NORMAL: Color = Color::srgba(0.0, 0.0, 0.0, 0.0);
+const ROW_SELECTED: Color = Color::srgba(0.0, 0.4, 0.0, 0.3);
+const BTN_NORMAL: Color = Color::srgb(0.25, 0.25, 0.3);
+const BTN_HOVER: Color = Color::srgb(0.35, 0.35, 0.45);
+
+// --- Setup (OnEnter Paused) ---
+
+pub fn setup_pause_ui(
+    mut commands: Commands,
+    settings: Res<GameSettings>,
+    ui_state: Res<SettingsUiState>,
+) {
+    let items = all_items();
+    let cats = build_categories(&items);
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+            PauseUiRoot,
+        ))
+        .with_children(|root| {
+            // Panel
+            root.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                width: Val::Px(500.0),
+                max_height: Val::Percent(90.0),
+                padding: UiRect::all(Val::Px(20.0)),
+                row_gap: Val::Px(8.0),
+                ..default()
+            })
+            .with_children(|panel| {
+                // Titel
+                panel.spawn((
+                    Text::new("KLOTZKOEPFE - PAUSE"),
+                    TextFont { font_size: 22.0, ..default() },
+                    TextColor(Color::srgb(0.0, 1.0, 0.0)),
+                ));
+
+                // Kategorie-Tabs
+                panel.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    flex_wrap: FlexWrap::Wrap,
+                    column_gap: Val::Px(4.0),
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                })
+                .with_children(|tabs_row| {
+                    for (cat_idx, (_, name)) in cats.iter().enumerate() {
+                        let is_active = cat_idx == ui_state.open_category;
+                        let bg = if is_active { TAB_ACTIVE } else { TAB_NORMAL };
+                        tabs_row
+                            .spawn((
+                                Button,
+                                Node {
+                                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(bg),
+                                CategoryTab(cat_idx),
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn((
+                                    Text::new(*name),
+                                    TextFont { font_size: 12.0, ..default() },
+                                    TextColor(Color::WHITE),
+                                ));
+                            });
+                    }
+                });
+
+                // Settings-Liste Container
+                panel.spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(2.0),
+                        min_height: Val::Px(300.0),
+                        ..default()
+                    },
+                    SettingsListContainer,
+                ))
+                .with_children(|list| {
+                    spawn_settings_rows(list, &items, &settings, &ui_state);
+                });
+
+                // Feedback Text
+                panel.spawn((
+                    Text::new(""),
+                    TextFont { font_size: 14.0, ..default() },
+                    TextColor(Color::srgb(0.2, 1.0, 0.2)),
+                    Node { height: Val::Px(18.0), ..default() },
+                    FeedbackText,
+                ));
+
+                // Help Text
+                panel.spawn((
+                    Text::new(""),
+                    TextFont { font_size: 12.0, ..default() },
+                    TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                    SettingsHelpText,
+                ));
+
+                // Hints
+                panel.spawn((
+                    Text::new("W/S: Navigieren | A/D: Wert | Q/E: Kategorie | Shift: 10x"),
+                    TextFont { font_size: 11.0, ..default() },
+                    TextColor(Color::srgb(0.4, 0.4, 0.4)),
+                ));
+
+                // Action Buttons
+                panel.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(10.0),
+                    margin: UiRect::top(Val::Px(5.0)),
+                    ..default()
+                })
+                .with_children(|row| {
+                    spawn_action_button(row, "Speichern [F5]", SaveButton);
+                    spawn_action_button(row, "Defaults [F6]", DefaultsButton);
+                    spawn_action_button(row, "Weiter [ESC]", ResumeButton);
+                });
+            });
+        });
+}
+
+fn spawn_settings_rows(
+    parent: &mut ChildSpawnerCommands,
+    items: &[Item],
+    settings: &GameSettings,
+    ui_state: &SettingsUiState,
+) {
+    let visible = visible_indices(items, ui_state.open_category);
+
+    for (row_idx, &item_idx) in visible.iter().enumerate() {
+        if let Item::Value(entry) = &items[item_idx] {
+            let is_selected = row_idx == ui_state.selected;
+            let bg = if is_selected { ROW_SELECTED } else { ROW_NORMAL };
+            let val = (entry.get)(settings);
+            let val_str = format_value(val, entry.display);
+            let is_readonly = entry.display == DisplayMode::ReadOnly;
+
+            let label_color = if is_readonly {
+                Color::srgb(0.5, 0.5, 0.5)
+            } else if is_selected {
+                Color::srgb(0.0, 1.0, 0.0)
+            } else {
+                Color::srgb(0.8, 0.8, 0.8)
+            };
+
+            parent
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
+                        padding: UiRect::axes(Val::Px(6.0), Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(bg),
+                    SettingsRowMarker(row_idx),
+                ))
+                .with_children(|row| {
+                    row.spawn((
+                        Text::new(entry.label),
+                        TextFont { font_size: 13.0, ..default() },
+                        TextColor(label_color),
+                    ));
+                    row.spawn((
+                        Text::new(val_str),
+                        TextFont { font_size: 13.0, ..default() },
+                        TextColor(if is_selected { Color::srgb(1.0, 1.0, 0.0) } else { Color::srgb(0.7, 0.7, 0.7) }),
+                        SettingsValueText(row_idx),
+                    ));
+                });
+        }
+    }
+}
+
+fn spawn_action_button(parent: &mut ChildSpawnerCommands, label: &str, marker: impl Component) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                padding: UiRect::axes(Val::Px(14.0), Val::Px(8.0)),
+                ..default()
+            },
+            BackgroundColor(BTN_NORMAL),
+            marker,
+        ))
+        .with_children(|btn| {
+            btn.spawn((
+                Text::new(label),
+                TextFont { font_size: 13.0, ..default() },
+                TextColor(Color::WHITE),
+            ));
+        });
+}
+
+// --- Keyboard Input (leicht angepasst) ---
 
 pub fn settings_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut ui_state: ResMut<SettingsUiState>,
     mut settings: ResMut<GameSettings>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     ui_state.repeat_timer.tick(time.delta());
     let items = all_items();
@@ -344,36 +596,49 @@ pub fn settings_input(
     let count = visible.len();
     if count == 0 { return; }
 
-    // Navigation
-    if keyboard.just_pressed(KeyCode::ArrowUp) {
+    // Navigation (ArrowUp/W, ArrowDown/S)
+    if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
         ui_state.selected = (ui_state.selected + count - 1) % count;
     }
-    if keyboard.just_pressed(KeyCode::ArrowDown) {
+    if keyboard.just_pressed(KeyCode::ArrowDown) || keyboard.just_pressed(KeyCode::KeyS) {
         ui_state.selected = (ui_state.selected + 1) % count;
     }
 
-    // Tab: naechste Kategorie
-    if keyboard.just_pressed(KeyCode::Tab) {
+    // Kategorie-Wechsel (Tab, Q/E)
+    let cat_switch = if keyboard.just_pressed(KeyCode::Tab) {
+        if keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight) {
+            Some(false)
+        } else {
+            Some(true)
+        }
+    } else if keyboard.just_pressed(KeyCode::KeyE) {
+        Some(true)
+    } else if keyboard.just_pressed(KeyCode::KeyQ) {
+        Some(false)
+    } else {
+        None
+    };
+
+    if let Some(forward) = cat_switch {
         let cats = build_categories(&items);
         if !cats.is_empty() {
-            let dir = if keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight) {
-                cats.len() - 1 // rueckwaerts
-            } else {
-                1
-            };
+            let dir = if forward { 1 } else { cats.len() - 1 };
             ui_state.open_category = (ui_state.open_category + dir) % cats.len();
-            ui_state.selected = 0; // Auf Kategorie-Header springen
+            ui_state.selected = 0;
+            ui_state.needs_rebuild = true;
         }
     }
 
-    // Werte aendern
-    if count == 0 { return; }
-    let selected_item_idx = visible[ui_state.selected];
+    // Werte aendern (ArrowLeft/A = decrease, ArrowRight/D = increase)
+    let selected_item_idx = visible[ui_state.selected.min(count - 1)];
 
-    let can_change = keyboard.just_pressed(KeyCode::ArrowLeft)
-        || keyboard.just_pressed(KeyCode::ArrowRight)
-        || ((keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::ArrowRight))
-            && ui_state.repeat_timer.is_finished());
+    let pressing_increase = keyboard.pressed(KeyCode::ArrowRight) || keyboard.pressed(KeyCode::KeyD);
+    let pressing_decrease = keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::KeyA);
+    let just_increase = keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD);
+    let just_decrease = keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA);
+
+    let can_change = just_increase || just_decrease
+        || ((pressing_increase || pressing_decrease) && ui_state.repeat_timer.is_finished());
 
     if can_change {
         if let Item::Value(entry) = &items[selected_item_idx] {
@@ -385,10 +650,10 @@ pub fn settings_input(
                 } else {
                     entry.step
                 };
-                if keyboard.pressed(KeyCode::ArrowRight) {
+                if pressing_increase {
                     (entry.set)(&mut settings, (val + step).min(entry.max));
                 }
-                if keyboard.pressed(KeyCode::ArrowLeft) {
+                if pressing_decrease {
                     (entry.set)(&mut settings, (val - step).max(entry.min));
                 }
             }
@@ -398,6 +663,8 @@ pub fn settings_input(
     // F5: Speichern
     if keyboard.just_pressed(KeyCode::F5) {
         settings.save();
+        ui_state.feedback_message = "Gespeichert!".into();
+        ui_state.feedback_timer = 2.0;
     }
 
     // F6: Defaults
@@ -405,116 +672,285 @@ pub fn settings_input(
         let show = settings.show_debug;
         *settings = GameSettings::default();
         settings.show_debug = show;
+        ui_state.feedback_message = "Defaults geladen!".into();
+        ui_state.feedback_timer = 2.0;
+        ui_state.needs_rebuild = true;
     }
 }
 
-pub fn settings_render(
+// --- UI Update System (jeden Frame, nur Text+Farbe aendern) ---
+
+pub fn settings_update_ui(
     mut commands: Commands,
     settings: Res<GameSettings>,
-    ui_state: Res<SettingsUiState>,
-    panel_query: Query<Entity, With<SettingsPanel>>,
+    time: Res<Time>,
+    mut ui_state: ResMut<SettingsUiState>,
+    mut value_texts: Query<(&mut Text, &mut TextColor, &SettingsValueText)>,
+    mut row_bgs: Query<(&mut BackgroundColor, &SettingsRowMarker), Without<SettingsValueText>>,
+    mut help_text: Query<&mut Text, (With<SettingsHelpText>, Without<SettingsValueText>, Without<SettingsRowMarker>, Without<FeedbackText>)>,
+    mut feedback_query: Query<(&mut Text, &mut TextColor), (With<FeedbackText>, Without<SettingsHelpText>, Without<SettingsValueText>, Without<SettingsRowMarker>)>,
+    list_container: Query<Entity, With<SettingsListContainer>>,
+    mut tab_query: Query<(&mut BackgroundColor, &Interaction, &CategoryTab), (Without<SettingsRowMarker>, Without<SettingsValueText>)>,
+    root_query: Query<Entity, With<PauseUiRoot>>,
 ) {
-    for entity in panel_query.iter() {
-        commands.entity(entity).try_despawn();
+    // Feedback Timer
+    if ui_state.feedback_timer > 0.0 {
+        ui_state.feedback_timer -= time.delta_secs();
     }
-
+    if let Ok((mut text, mut color)) = feedback_query.single_mut() {
+        if ui_state.feedback_timer > 0.0 {
+            if **text != ui_state.feedback_message {
+                **text = ui_state.feedback_message.clone();
+            }
+            let alpha = (ui_state.feedback_timer / 2.0).min(1.0);
+            color.0 = Color::srgba(0.2, 1.0, 0.2, alpha);
+        } else if !text.is_empty() {
+            **text = String::new();
+        }
+    }
     let items = all_items();
-    let cats = build_categories(&items);
     let visible = visible_indices(&items, ui_state.open_category);
-    let open_cat_name = cats.get(ui_state.open_category).map(|(_, n)| *n).unwrap_or("");
+    let count = visible.len();
+    let sel = ui_state.selected.min(count.saturating_sub(1));
 
-    let mut lines: Vec<String> = Vec::new();
-
-    // Header
-    lines.push("=== KLOTZKOEPFE - PAUSE ===".into());
-    lines.push("Up/Down: Wert | Shift: 10x | Tab: Kategorie".into());
-    lines.push("F5: Speichern | F6: Defaults | ESC: Weiter".into());
-    lines.push(String::new());
-
-    // Kategorie-Navigator
-    let cat_num = ui_state.open_category + 1;
-    let cat_total = cats.len();
-    lines.push(format!(
-        "<< Tab  [{}/{}] {}  Tab >>",
-        cat_num, cat_total, open_cat_name
-    ));
-    lines.push(String::new());
-
-    // Scrolling: max 16 Eintraege sichtbar
-    let max_visible = 16;
-    let total = visible.len();
-    let sel = ui_state.selected.min(total.saturating_sub(1));
-    let half = max_visible / 2;
-    let scroll_start = if sel > half {
-        (sel - half).min(total.saturating_sub(max_visible))
-    } else {
-        0
-    };
-    let scroll_end = (scroll_start + max_visible).min(total);
-
-    if scroll_start > 0 {
-        lines.push(format!("   ... {} davor ...", scroll_start));
-    }
-
-    for i in scroll_start..scroll_end {
-        let item_idx = visible[i];
-        if let Item::Value(entry) = &items[item_idx] {
-            let is_selected = i == sel;
-            let marker = if is_selected { "> " } else { "  " };
-
-            let val = (entry.get)(&settings);
-            let val_str = match entry.display {
-                DisplayMode::Bool => {
-                    if val >= 0.5 { "ON".into() } else { "OFF".into() }
-                }
-                DisplayMode::Percent => format!("{:.0}%", val),
-                DisplayMode::ReadOnly => format!("{:.2}s", val),
-                DisplayMode::Float => format!("{:.2}", val),
+    // Rebuild bei Kategorie-Wechsel
+    if ui_state.needs_rebuild {
+        ui_state.needs_rebuild = false;
+        if let Ok(container) = list_container.single() {
+            // Container despawnen und neu spawnen geht nicht einfach,
+            // daher despawnen wir den ganzen Root und triggern setup neu
+            // Einfacher: despawn container, re-create
+            commands.entity(container).try_despawn();
+            // Neuen Container mit Rows spawnen - wird als Kind des Panels eingefuegt
+            // Da der Container weg ist, muessen wir ihn am PauseUiRoot neu anhaengen
+            // Einfacher Ansatz: ganzes UI neu spawnen
+        }
+        // Kompletten Pause-UI Rebuild (einfach und zuverlaessig)
+        for entity in root_query.iter() {
+            commands.entity(entity).try_despawn();
+        }
+        // Wir spawnen das ganze UI neu im naechsten Frame nicht moeglich hier,
+        // daher inline:
+        let cats_rebuild = build_categories(&items);
+        commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+                PauseUiRoot,
+            ))
+            .with_children(|root| {
+                root.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    width: Val::Px(500.0),
+                    max_height: Val::Percent(90.0),
+                    padding: UiRect::all(Val::Px(20.0)),
+                    row_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|panel| {
+                    panel.spawn((
+                        Text::new("KLOTZKOEPFE - PAUSE"),
+                        TextFont { font_size: 22.0, ..default() },
+                        TextColor(Color::srgb(0.0, 1.0, 0.0)),
+                    ));
+                    panel.spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        flex_wrap: FlexWrap::Wrap,
+                        column_gap: Val::Px(4.0),
+                        row_gap: Val::Px(4.0),
+                        ..default()
+                    })
+                    .with_children(|tabs_row| {
+                        for (cat_idx, (_, name)) in cats_rebuild.iter().enumerate() {
+                            let is_active = cat_idx == ui_state.open_category;
+                            let bg = if is_active { TAB_ACTIVE } else { TAB_NORMAL };
+                            tabs_row
+                                .spawn((
+                                    Button,
+                                    Node {
+                                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(bg),
+                                    CategoryTab(cat_idx),
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn((
+                                        Text::new(*name),
+                                        TextFont { font_size: 12.0, ..default() },
+                                        TextColor(Color::WHITE),
+                                    ));
+                                });
+                        }
+                    });
+                    panel.spawn((
+                        Node {
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(2.0),
+                            min_height: Val::Px(300.0),
+                            ..default()
+                        },
+                        SettingsListContainer,
+                    ))
+                    .with_children(|list| {
+                        spawn_settings_rows(list, &items, &settings, &ui_state);
+                    });
+                    panel.spawn((
+                        Text::new(""),
+                        TextFont { font_size: 14.0, ..default() },
+                        TextColor(Color::srgb(0.2, 1.0, 0.2)),
+                        Node { height: Val::Px(18.0), ..default() },
+                        FeedbackText,
+                    ));
+                    panel.spawn((
+                        Text::new(""),
+                        TextFont { font_size: 12.0, ..default() },
+                        TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                        SettingsHelpText,
+                    ));
+                    panel.spawn((
+                        Text::new("W/S: Navigieren | A/D: Wert | Q/E: Kategorie | Shift: 10x"),
+                        TextFont { font_size: 11.0, ..default() },
+                        TextColor(Color::srgb(0.4, 0.4, 0.4)),
+                    ));
+                    panel.spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(10.0),
+                        margin: UiRect::top(Val::Px(5.0)),
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        spawn_action_button(row, "Speichern [F5]", SaveButton);
+                        spawn_action_button(row, "Defaults [F6]", DefaultsButton);
+                        spawn_action_button(row, "Weiter [ESC]", ResumeButton);
+                    });
+                });
+            });
+        // Tab-Farben updaten
+        for (mut bg, interaction, tab) in tab_query.iter_mut() {
+            let is_active = tab.0 == ui_state.open_category;
+            *bg = if is_active {
+                BackgroundColor(TAB_ACTIVE)
+            } else if *interaction == Interaction::Hovered {
+                BackgroundColor(TAB_HOVER)
+            } else {
+                BackgroundColor(TAB_NORMAL)
             };
+        }
+        return;
+    }
 
-            lines.push(format!("{}{:<18} {}", marker, entry.label, val_str));
+    // Werte + Highlight updaten
+    for (mut text, mut color, svt) in value_texts.iter_mut() {
+        if svt.0 < visible.len() {
+            let item_idx = visible[svt.0];
+            if let Item::Value(entry) = &items[item_idx] {
+                let val = (entry.get)(&settings);
+                let val_str = format_value(val, entry.display);
+                if **text != val_str {
+                    **text = val_str;
+                }
+                let is_selected = svt.0 == sel;
+                let target = if is_selected { Color::srgb(1.0, 1.0, 0.0) } else { Color::srgb(0.7, 0.7, 0.7) };
+                color.0 = target;
+            }
         }
     }
 
-    if scroll_end < total {
-        lines.push(format!("   ... {} weitere ...", total - scroll_end));
+    // Row Highlight
+    for (mut bg, row) in row_bgs.iter_mut() {
+        let is_selected = row.0 == sel;
+        *bg = BackgroundColor(if is_selected { ROW_SELECTED } else { ROW_NORMAL });
     }
 
-    // Help text for selected item
-    lines.push(String::new());
-    let selected_item_idx = visible[sel];
-    if let Item::Value(entry) = &items[selected_item_idx] {
-        if !entry.help.is_empty() {
-            lines.push(format!("? {}", entry.help));
+    // Help Text
+    if let Ok(mut text) = help_text.single_mut() {
+        if sel < visible.len() {
+            let item_idx = visible[sel];
+            if let Item::Value(entry) = &items[item_idx] {
+                let help = format!("? {}", entry.help);
+                if **text != help {
+                    **text = help;
+                }
+            }
         }
     }
 
-    let text = lines.join("\n");
-
-    // Semi-transparent background for readability
-    commands.spawn((
-        Sprite {
-            color: Color::srgba(0.0, 0.0, 0.0, 0.75),
-            custom_size: Some(Vec2::new(400.0, 500.0)),
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, 49.0),
-        SettingsPanel,
-    ));
-
-    commands.spawn((
-        Text2d::new(text),
-        TextFont { font_size: 13.0, ..default() },
-        TextColor(Color::srgb(0.0, 1.0, 0.0)),
-        Transform::from_xyz(0.0, 0.0, 50.0),
-        SettingsPanel,
-    ));
+    // Tab-Farben
+    for (mut bg, interaction, tab) in tab_query.iter_mut() {
+        let is_active = tab.0 == ui_state.open_category;
+        *bg = if is_active {
+            BackgroundColor(TAB_ACTIVE)
+        } else if *interaction == Interaction::Hovered {
+            BackgroundColor(TAB_HOVER)
+        } else {
+            BackgroundColor(TAB_NORMAL)
+        };
+    }
 }
+
+// --- Button Interaction ---
+
+pub fn settings_button_interaction(
+    mut ui_state: ResMut<SettingsUiState>,
+    mut settings: ResMut<GameSettings>,
+    mut next_state: ResMut<NextState<GameState>>,
+    tab_query: Query<(&Interaction, &CategoryTab), Changed<Interaction>>,
+    save_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
+    defaults_query: Query<&Interaction, (Changed<Interaction>, With<DefaultsButton>)>,
+    resume_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>)>,
+) {
+    // Tab-Clicks
+    for (interaction, tab) in tab_query.iter() {
+        if *interaction == Interaction::Pressed {
+            ui_state.open_category = tab.0;
+            ui_state.selected = 0;
+            ui_state.needs_rebuild = true;
+        }
+    }
+
+    // Action Buttons
+    for interaction in save_query.iter() {
+        if *interaction == Interaction::Pressed {
+            settings.save();
+            ui_state.feedback_message = "Gespeichert!".into();
+            ui_state.feedback_timer = 2.0;
+        }
+    }
+    for interaction in defaults_query.iter() {
+        if *interaction == Interaction::Pressed {
+            let show = settings.show_debug;
+            *settings = GameSettings::default();
+            settings.show_debug = show;
+            ui_state.feedback_message = "Defaults geladen!".into();
+            ui_state.feedback_timer = 2.0;
+            ui_state.needs_rebuild = true;
+        }
+    }
+    for interaction in resume_query.iter() {
+        if *interaction == Interaction::Pressed {
+            next_state.set(GameState::Playing);
+        }
+    }
+}
+
+// --- Cleanup ---
 
 pub fn cleanup_settings_panel(
     mut commands: Commands,
+    root_query: Query<Entity, With<PauseUiRoot>>,
+    // Legacy: alte SettingsPanel Sprites falls noch vorhanden
     panel_query: Query<Entity, With<SettingsPanel>>,
 ) {
+    for entity in root_query.iter() {
+        commands.entity(entity).try_despawn();
+    }
     for entity in panel_query.iter() {
         commands.entity(entity).try_despawn();
     }

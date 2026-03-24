@@ -72,6 +72,7 @@ impl ComboMeter {
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
     #[default]
+    Lobby,
     Playing,
     Paused,
     GameOver,

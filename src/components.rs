@@ -512,6 +512,12 @@ pub struct WeaponNameText(pub PlayerId);
 pub struct GameOverUi;
 
 #[derive(Component)]
+pub struct GameOverUiRoot;
+
+#[derive(Component)]
+pub struct RestartButton;
+
+#[derive(Component)]
 pub struct WeaponUnlockText {
     pub lifetime: Timer,
 }

@@ -41,19 +41,22 @@ fn main() {
         .init_resource::<weapons::UnlockedWeapons>()
         .insert_resource(GameSettings::load())
         .init_resource::<audio::SoundQueue>()
-        // Erster Spielstart
+        // Startup: nur globale Systeme (kein Spieler/HUD/Crates - das kommt bei OnEnter(Playing))
         .add_systems(
             Startup,
             (
                 pixelation::setup_pixelation,
                 room::setup_room,
-                player::spawn_players,
-                hud::setup_hud,
-                crates::setup_base_crates,
                 ground_decals::setup_ground_decals,
                 audio::setup_audio,
             ),
         )
+        // Lobby
+        .add_systems(OnEnter(GameState::Lobby), lobby_ui::setup_lobby)
+        .add_systems(Update, lobby_ui::lobby_input.run_if(in_state(GameState::Lobby)))
+        .add_systems(OnExit(GameState::Lobby), lobby_ui::cleanup_lobby)
+        // Spielstart: Spieler, HUD und Kisten spawnen
+        .add_systems(OnEnter(GameState::Playing), start_playing)
         // Restart nach Game Over: exclusive system despawnt sofort, dann neu spawnen
         .add_systems(
             OnEnter(GameState::Restarting),
@@ -62,11 +65,13 @@ fn main() {
         // Pause-Toggle, Fullscreen, Pixelation und Audio laufen immer
         .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, pixelation::update_pixelation, audio::play_sounds))
         // Settings-UI nur im Pause-State
+        .add_systems(OnEnter(GameState::Paused), debug_ui::setup_pause_ui)
         .add_systems(
             Update,
             (
                 debug_ui::settings_input,
-                debug_ui::settings_render,
+                debug_ui::settings_update_ui,
+                debug_ui::settings_button_interaction,
             )
                 .run_if(in_state(GameState::Paused)),
         )
@@ -164,7 +169,23 @@ fn main() {
             Update,
             hud::game_over_input.run_if(in_state(GameState::GameOver)),
         )
+        .add_systems(OnExit(GameState::GameOver), hud::cleanup_game_over)
         .run();
+}
+
+fn start_playing(
+    mut commands: Commands,
+    settings: Res<GameSettings>,
+    existing_players: Query<&components::Player>,
+) {
+    // Nur spawnen wenn noch keine Spieler existieren
+    // (restart_game spawnt selbst, und Pause/Unlock kommen zurueck ohne Neuspawn)
+    if existing_players.iter().count() > 0 {
+        return;
+    }
+    player::do_spawn_players(&mut commands, &settings);
+    hud::setup_hud(commands.reborrow());
+    crates::do_setup_base_crates(&mut commands, &settings);
 }
 
 fn fullscreen_toggle(
