@@ -108,10 +108,10 @@ fn all_items() -> Vec<Item> {
 
         // === Anzeige ===
         Item::Category("Anzeige"),
-        Item::Value(Entry { label: "Volume", help: "Gesamtlautstaerke (0-100%)", get: |s| s.volume * 100.0, set: |s,v| s.volume = v / 100.0, step: 5.0, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
-        Item::Value(Entry { label: "Waffen-Vol", help: "Lautstaerke Waffen/Explosionen (0-100%)", get: |s| s.vol_weapons * 100.0, set: |s,v| s.vol_weapons = v / 100.0, step: 5.0, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
-        Item::Value(Entry { label: "Gegner-Vol", help: "Lautstaerke Zombie-Sounds (0-100%)", get: |s| s.vol_enemies * 100.0, set: |s,v| s.vol_enemies = v / 100.0, step: 5.0, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
-        Item::Value(Entry { label: "Spieler-Vol", help: "Lautstaerke Spieler-Sounds (0-100%)", get: |s| s.vol_player * 100.0, set: |s,v| s.vol_player = v / 100.0, step: 5.0, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
+        Item::Value(Entry { label: "Volume", help: "Gesamtlautstaerke (0-100%)", get: |s| s.volume * 100.0, set: |s,v| s.volume = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
+        Item::Value(Entry { label: "Waffen-Vol", help: "Lautstaerke Waffen/Explosionen (0-100%)", get: |s| s.vol_weapons * 100.0, set: |s,v| s.vol_weapons = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
+        Item::Value(Entry { label: "Gegner-Vol", help: "Lautstaerke Zombie-Sounds (0-100%)", get: |s| s.vol_enemies * 100.0, set: |s,v| s.vol_enemies = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
+        Item::Value(Entry { label: "Spieler-Vol", help: "Lautstaerke Spieler-Sounds (0-100%)", get: |s| s.vol_player * 100.0, set: |s,v| s.vol_player = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
         Item::Value(Entry { label: "Fullscreen", help: "Vollbildmodus (auch mit F11)", get: |s| if s.fullscreen { 1.0 } else { 0.0 }, set: |s,v| s.fullscreen = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Pixelation", help: "Pixelierter Retro-Look", get: |s| if s.pixelation_enabled { 1.0 } else { 0.0 }, set: |s,v| s.pixelation_enabled = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Pixel-Groesse", help: "Groesse der Pixel (1.1=subtil, 1.5=mittel, 2.0=grob)", get: |s| s.pixel_size, set: |s,v| s.pixel_size = v, step: 0.05, min: 1.05, max: 2.5, display: DisplayMode::Float }),

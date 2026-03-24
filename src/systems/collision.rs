@@ -310,6 +310,7 @@ pub fn explosion_player_collision(
     explosion_query: Query<(&Transform, &Explosion)>,
     shader_explosion_query: Query<(&Transform, &ShaderExplosion), Without<Explosion>>,
     mut player_query: Query<(Entity, &Player, &mut Health, &Transform, Option<&mut RegenCooldown>), (Without<Explosion>, Without<ShaderExplosion>)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     if !settings.explosion_friendly_fire { return; }
 
@@ -342,6 +343,7 @@ pub fn explosion_player_collision(
                     if !wave.dead_players.contains(&player.id) {
                         wave.dead_players.push(player.id);
                     }
+                    sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                     commands.entity(entity).try_despawn();
                 }
             }
@@ -359,6 +361,7 @@ pub fn bullet_player_collision(
     mut next_state: ResMut<NextState<GameState>>,
     bullet_query: Query<(Entity, &Transform, &Bullet, &BulletOwner)>,
     mut player_query: Query<(Entity, &Player, &mut Health, &Transform, Option<&mut RegenCooldown>), Without<Bullet>>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     if !settings.friendly_fire { return; }
 
@@ -383,6 +386,7 @@ pub fn bullet_player_collision(
                     if !wave.dead_players.contains(&player.id) {
                         wave.dead_players.push(player.id);
                     }
+                    sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                     commands.entity(player_entity).try_despawn();
                 }
                 break;
@@ -431,6 +435,7 @@ pub fn zombie_player_collision(
                         if !wave.dead_players.contains(&player.id) {
                             wave.dead_players.push(player.id);
                         }
+                        sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                         commands.entity(entity).try_despawn();
                     }
                     break;

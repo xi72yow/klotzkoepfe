@@ -35,3 +35,8 @@ Alle Sound-Dateien sind CC0 oder CC-BY 3.0 lizenziert.
 - **Autor:** Lamoot
 - **Quelle:** https://opengameart.org/content/toy-double-barrel-shotgun-sounds
 - **Dateien:** reload.wav
+
+### 15 Vocal Male Strain/Hurt/Pain/Jump Sounds
+- **Autor:** OwlishMedia
+- **Quelle:** https://opengameart.org/content/15-vocal-male-strainhurtpainjump-sounds
+- **Dateien:** player_hurt_1/2/3/4.wav, player_death.wav, player_melee_1/2.wav
