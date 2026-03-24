@@ -430,7 +430,7 @@ pub fn zombie_player_collision(
                     // Knockback on player
                     let diff = player_pos - zombie_pos;
                     if diff.length() > 0.1 {
-                        commands.entity(entity).insert(Knockback {
+                        commands.entity(entity).try_insert(Knockback {
                             velocity: diff.normalize() * settings.knockback_strength_player,
                             duration: Timer::from_seconds(settings.knockback_duration, TimerMode::Once),
                         });
