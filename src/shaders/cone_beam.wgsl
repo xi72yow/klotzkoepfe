@@ -7,6 +7,13 @@ struct ConeBeamParams {
     intensity: f32,    // 0..1, smooth ramped
     cone_angle: f32,
     beam_type: f32,    // 0 = flame, 1 = freeze
+    // Treffer-Distanzen (normalisiert 0..1), 8 Werte in 2x vec4
+    hit_distances_0: vec4<f32>,
+    hit_distances_1: vec4<f32>,
+    hit_count: f32,
+    _pad0: f32,
+    _pad1: f32,
+    _pad2: f32,
 };
 
 @group(2) @binding(0) var<uniform> params: ConeBeamParams;
@@ -76,6 +83,55 @@ fn pixelate(uv: vec2<f32>, grid: f32) -> vec2<f32> {
     return floor(uv * grid) / grid;
 }
 
+// ===================== Hit Helpers =====================
+
+// Liest Treffer-Distanz aus den 2 vec4s
+fn get_hit_dist(index: i32) -> f32 {
+    if index < 4 {
+        if index == 0 { return params.hit_distances_0.x; }
+        if index == 1 { return params.hit_distances_0.y; }
+        if index == 2 { return params.hit_distances_0.z; }
+        return params.hit_distances_0.w;
+    } else {
+        if index == 4 { return params.hit_distances_1.x; }
+        if index == 5 { return params.hit_distances_1.y; }
+        if index == 6 { return params.hit_distances_1.z; }
+        return params.hit_distances_1.w;
+    }
+}
+
+// Berechnet Splash-Intensitaet an einer Position basierend auf allen Treffern
+fn hit_splash(dist: f32, t: f32, lateral: f32) -> f32 {
+    var splash = 0.0;
+    let count = i32(params.hit_count + 0.5);
+    for (var i = 0; i < 8; i++) {
+        if i >= count { break; }
+        let hd = get_hit_dist(i);
+        // Entfernung zum Trefferpunkt
+        let d = abs(dist - hd);
+        // Splash-Ring um den Trefferpunkt
+        let ring = smoothstep(0.12, 0.0, d);
+        // Seitliche Spritzer: staerker nahe am Treffer
+        let side_spray = abs(lateral) * ring * 0.8;
+        splash += ring * 0.7 + side_spray;
+    }
+    return min(splash, 1.5);
+}
+
+// Berechnet wie stark der Strahl hinter Treffern abgedaempft wird
+fn hit_absorption(dist: f32) -> f32 {
+    var absorption = 0.0;
+    let count = i32(params.hit_count + 0.5);
+    for (var i = 0; i < 8; i++) {
+        if i >= count { break; }
+        let hd = get_hit_dist(i);
+        // Hinter dem Treffer: Strahl wird abgeschwaecht
+        let behind = smoothstep(hd - 0.02, hd + 0.05, dist);
+        absorption += behind * 0.15;
+    }
+    return min(absorption, 0.7);
+}
+
 // ===================== FLAME =====================
 
 fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
@@ -83,19 +139,22 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let uv = pixelate(raw_uv, grid_size);
 
     // UV mit Padding: Effekt nutzt nur inneren Bereich (~0.12..0.88)
-    // Damit Noise-Verzerrungen nicht am Meshrand abgeschnitten werden
-    let padded_x = (uv.x - 0.12) / 0.76; // 0..1 im Effektbereich
+    let padded_x = (uv.x - 0.12) / 0.76;
     let padded_y = (uv.y - 0.15) / 0.70;
     let dist = padded_x;
     let lateral = (padded_y - 0.5) * 2.0; // -1..1
 
-    // Reichweite skaliert mit Intensity -> Anlauf/Ablauf-Animation
-    let reach = intensity; // 0..1, Flamme "schiesst raus"
-    // Alles jenseits der Reichweite wird ausgeblendet
+    // Reichweite skaliert mit Intensity
+    let reach = intensity;
     let reach_fade = 1.0 - smoothstep(reach * 0.85, reach, dist);
 
-    // UV-Distortion: staerker zur Spitze hin
-    let distort_strength = dist * dist * 0.4;
+    // Treffer-Effekte
+    let splash = hit_splash(dist, t, lateral);
+    let absorption = hit_absorption(dist);
+
+    // UV-Distortion: staerker zur Spitze hin + extra Turbulenz an Treffern
+    let hit_turb = splash * 0.3;
+    let distort_strength = dist * dist * 0.4 + hit_turb;
     let distort = vec2(
         fbm(uv * vec2(5.0, 3.0) + vec2(t * 3.0, t * 1.5)) - 0.5,
         fbm(uv * vec2(4.0, 6.0) + vec2(t * 2.0, t * 4.0)) - 0.5
@@ -104,16 +163,17 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let distorted_lateral = lateral + distort.y * 2.0;
     let distorted_dist = dist + distort.x * 0.3;
 
-    // Flammenform: breitet sich aus, noise-basierter Rand
-    let spread = 0.08 + dist * 0.7;
+    // Flammenform: breitet sich aus + an Treffern breiter (Spritzer)
+    let splash_spread = splash * 0.25;
+    let spread = 0.08 + dist * 0.7 + splash_spread;
     let flame_edge = abs(distorted_lateral) / max(spread, 0.01);
 
-    // Noise-basierte Rand-Maske (organisch ausfransend)
+    // Noise-basierte Rand-Maske
     let edge_noise = fbm(vec2(dist * 8.0 - t * 5.0, lateral * 4.0)) * 0.5;
     let flame_mask = 1.0 - smoothstep(0.5 + edge_noise, 1.0 + edge_noise * 0.5, flame_edge);
 
-    // Distanz-Abfall
-    let dist_fade = smoothstep(1.1, 0.6, distorted_dist);
+    // Distanz-Abfall + Absorption hinter Treffern
+    let dist_fade = smoothstep(1.1, 0.6, distorted_dist) * (1.0 - absorption);
     let start_fade = smoothstep(-0.05, 0.08, dist);
 
     // Turbulenz-Textur
@@ -138,6 +198,10 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     } else {
         color = mix(orange, red, (ramp - 0.5) * 2.0);
     }
+
+    // Treffer: heller Aufblitz (weiss-gelb)
+    let splash_glow = splash * 0.5;
+    color = vec4(color.rgb + vec3(splash_glow, splash_glow * 0.7, splash_glow * 0.2), color.a);
 
     // Flackern
     let flicker = 0.75 + 0.25 * turb2;
@@ -168,12 +232,17 @@ fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let dist = padded_x;
     let lateral = (padded_y - 0.5) * 2.0;
 
-    // Reichweite skaliert mit Intensity -> Anlauf/Ablauf
+    // Reichweite skaliert mit Intensity
     let reach = intensity;
     let reach_fade = 1.0 - smoothstep(reach * 0.85, reach, dist);
 
+    // Treffer-Effekte
+    let splash = hit_splash(dist, t, lateral);
+    let absorption = hit_absorption(dist);
+
     // Breiter, ungleichmaessiger Kegel - wolkenartig
     let slow_t = t * 0.8;
+    let hit_turb = splash * 0.2;
     let cloud_distort = vec2(
         fbm(uv * vec2(3.0, 2.5) + vec2(slow_t * 0.7, slow_t * 0.3)) - 0.5,
         fbm(uv * vec2(2.5, 4.0) + vec2(slow_t * 0.5, slow_t * 0.9)) - 0.5
@@ -181,16 +250,17 @@ fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
 
     let distorted_lateral = lateral + cloud_distort.y * dist * 0.8;
 
-    // Breite Wolkenform
-    let spread = 0.05 + dist * 0.85 + cloud_distort.x * 0.2;
+    // Breite Wolkenform + Spritzer an Treffern
+    let splash_spread = splash * 0.3;
+    let spread = 0.05 + dist * 0.85 + cloud_distort.x * 0.2 + splash_spread;
     let cone_factor = abs(distorted_lateral) / max(spread, 0.01);
 
     // Wolkige Rand-Maske
     let cloud_noise = fbm(vec2(dist * 5.0 - slow_t * 2.0, lateral * 3.0 + slow_t * 0.5));
     let cloud_mask = 1.0 - smoothstep(0.4 + cloud_noise * 0.4, 1.0, cone_factor);
 
-    // Distanz-Abfall
-    let dist_fade = smoothstep(1.1, 0.5, dist);
+    // Distanz-Abfall + Absorption
+    let dist_fade = smoothstep(1.1, 0.5, dist) * (1.0 - absorption);
     let start_fade = smoothstep(-0.05, 0.06, dist);
 
     // Voronoi-Eiskristall-Textur
@@ -224,11 +294,16 @@ fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
         color = mix(ice_mid, ice_deep, (ramp - 0.6) / 0.4);
     }
 
+    // Treffer: heller Aufblitz (weiss-blau)
+    let splash_glow = splash * 0.4;
+    color = vec4(color.rgb + vec3(splash_glow * 0.5, splash_glow * 0.7, splash_glow), color.a);
+
     // Kristall-Textur
     color = vec4(color.rgb * crystal_pattern, color.a);
 
-    // Glitzer
-    color = vec4(color.rgb + vec3(glitter, glitter, glitter * 1.2), color.a);
+    // Glitzer + extra Glitzer an Treffern
+    let hit_glitter = glitter + splash * 0.3;
+    color = vec4(color.rgb + vec3(hit_glitter, hit_glitter, hit_glitter * 1.2), color.a);
 
     // Wolken-Flimmern
     let cloud_flicker = 0.85 + 0.15 * noise(uv * vec2(6.0, 4.0) - vec2(slow_t * 1.2, slow_t * 0.8));
