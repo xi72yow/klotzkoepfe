@@ -96,6 +96,9 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
                     rng.random_range(5.0..20.0),
                     TimerMode::Once,
                 ),
+                legs_remaining: 2,
+                arms_remaining: 2,
+                crawl_transition: 0.0,
             },
             Health { current: hp, max: hp },
             ZombieVariant(variant),
@@ -111,20 +114,24 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
             parent.spawn((
                 Sprite { color: head_color, custom_size: Some(head_size), ..default() },
                 Transform::from_xyz(0.0, 8.0, 2.0),
+                ZombieHead,
             ));
             // Augen (rote Punkte)
             parent.spawn((
                 Sprite { color: Color::srgb(0.9, 0.1, 0.1), custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
                 Transform::from_xyz(-4.0, 10.0, 3.0),
+                ZombieEye { side: -1.0 },
             ));
             parent.spawn((
                 Sprite { color: Color::srgb(0.9, 0.1, 0.1), custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
                 Transform::from_xyz(4.0, 10.0, 3.0),
+                ZombieEye { side: 1.0 },
             ));
             // Koerper
             parent.spawn((
                 Sprite { color: body_color, custom_size: Some(body_size), ..default() },
                 Transform::from_xyz(0.0, -4.0, 1.0),
+                ZombieBody,
             ));
             // Linkes Bein
             parent.spawn((
@@ -186,7 +193,13 @@ pub fn zombie_ai(
 
         if diff.length() > 1.0 {
             let direction = diff.normalize();
-            let effective_speed = zombie.speed * zombie.speed_modifier;
+            // Mobility: 2 Beine = 100%, 1 Bein = 50%, 0 Beine = kriechen mit Armen (15%)
+            let mobility = match zombie.legs_remaining {
+                2 => 1.0,
+                1 => 0.5,
+                _ => if zombie.arms_remaining > 0 { 0.15 } else { 0.0 },
+            };
+            let effective_speed = zombie.speed * zombie.speed_modifier * mobility;
             transform.translation.x += direction.x * effective_speed * time.delta_secs();
             transform.translation.y += direction.y * effective_speed * time.delta_secs();
         }
@@ -196,17 +209,21 @@ pub fn zombie_ai(
 pub fn zombie_animation(
     time: Res<Time>,
     player_query: Query<&Transform, With<Player>>,
-    zombie_query: Query<(&Zombie, &Transform, &Children), Without<Player>>,
-    mut leg_query: Query<(&ZombieLeg, &mut Transform), (Without<Zombie>, Without<ZombieArm>, Without<Player>)>,
-    mut arm_query: Query<(&ZombieArm, &mut Transform), (Without<Zombie>, Without<ZombieLeg>, Without<Player>)>,
+    mut zombie_query: Query<(&mut Zombie, &mut Transform, &Children), Without<Player>>,
+    mut leg_query: Query<(&ZombieLeg, &mut Transform), (Without<Zombie>, Without<ZombieArm>, Without<ZombieEye>, Without<ZombieHead>, Without<ZombieBody>, Without<Player>)>,
+    mut arm_query: Query<(&ZombieArm, &mut Transform), (Without<Zombie>, Without<ZombieLeg>, Without<ZombieEye>, Without<ZombieHead>, Without<ZombieBody>, Without<Player>)>,
+    mut eye_query: Query<(&ZombieEye, &mut Transform, &mut Sprite), (Without<Zombie>, Without<ZombieLeg>, Without<ZombieArm>, Without<ZombieHead>, Without<ZombieBody>, Without<Player>)>,
+    mut head_query: Query<&mut Transform, (With<ZombieHead>, Without<Zombie>, Without<ZombieLeg>, Without<ZombieArm>, Without<ZombieEye>, Without<ZombieBody>, Without<Player>)>,
+    mut body_query: Query<&mut Transform, (With<ZombieBody>, Without<Zombie>, Without<ZombieLeg>, Without<ZombieArm>, Without<ZombieEye>, Without<ZombieHead>, Without<Player>)>,
 ) {
     let player_positions: Vec<Vec2> = player_query
         .iter()
         .map(|t| t.translation.truncate())
         .collect();
 
-    for (zombie, ztransform, children) in zombie_query.iter() {
+    for (mut zombie, mut ztransform, children) in zombie_query.iter_mut() {
         let zombie_pos = ztransform.translation.truncate();
+        let crawling = zombie.legs_remaining < 2;
 
         // Richtung zum naechsten Spieler
         let facing = if let Some(nearest) = player_positions.iter()
@@ -217,31 +234,94 @@ pub fn zombie_animation(
             Vec2::NEG_Y
         };
 
+        // Umfall-Transition: smooth von 0 (stehend) zu 1 (liegend)
+        let target_crawl = if crawling { 1.0 } else { 0.0 };
+        let transition_speed = 4.0; // ~0.25s zum Umfallen
+        if zombie.crawl_transition < target_crawl {
+            zombie.crawl_transition = (zombie.crawl_transition + transition_speed * time.delta_secs()).min(1.0);
+        } else if zombie.crawl_transition > target_crawl {
+            zombie.crawl_transition = (zombie.crawl_transition - transition_speed * time.delta_secs()).max(0.0);
+        }
+        let ct = zombie.crawl_transition;
+
+        // Root-Rotation: interpoliert zwischen aufrecht und liegend
+        let facing_angle = facing.y.atan2(facing.x) - std::f32::consts::FRAC_PI_2;
+        let crawl_rot = Quat::from_rotation_z(facing_angle);
+        ztransform.rotation = Quat::IDENTITY.slerp(crawl_rot, ct);
+
         let t = time.elapsed_secs();
         let is_frozen = zombie.speed_modifier < 0.5;
+        let anim_speed = if is_frozen { 0.3 } else { 1.0 };
 
         for child in children.iter() {
-            // Bein-Animation: langsames Schlurfen in Laufrichtung
+            // Bein-Animation
             if let Ok((leg, mut transform)) = leg_query.get_mut(child) {
-                let speed = if is_frozen { 0.2 } else { 1.0 };
-                let swing = (t * 4.0 * speed + leg.side * std::f32::consts::PI).sin() * 2.5;
-                transform.translation.x = 4.0 * leg.side + facing.x * swing;
-                transform.translation.y = -13.0 + facing.y * swing;
+                if crawling {
+                    // Verbleibendes Bein wiggelt hilflos
+                    let wiggle = (t * 6.0 + leg.side).sin() * 2.0;
+                    transform.translation.x = 4.0 * leg.side + wiggle;
+                    transform.translation.y = -13.0 + (t * 4.0).sin().abs() * 1.5;
+                } else {
+                    let swing = (t * 4.0 * anim_speed + leg.side * std::f32::consts::PI).sin() * 2.5;
+                    transform.translation.x = 4.0 * leg.side + facing.x * swing;
+                    transform.translation.y = -13.0 + facing.y * swing;
+                }
             }
 
-            // Arm-Animation: ausgestreckt zum Spieler, leichtes Zittern
+            // Arm-Animation
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
-                let wobble = (t * 3.0 + arm.side * 2.0).sin() * 0.1;
-                // Arm-Basis am Koerper
-                let base_x = arm.side * 9.5;
-                let base_y = -2.0;
-                // Arm zeigt in Richtung Spieler (Offset vom Koerper weg)
-                let arm_reach = 6.0;
-                transform.translation.x = base_x + facing.x * arm_reach;
-                transform.translation.y = base_y + facing.y * arm_reach;
-                // Arm rotieren: kurze Seite zeigt in Facing-Richtung
-                let angle = facing.y.atan2(facing.x);
-                transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2 + wobble);
+                if crawling {
+                    let phase = arm.side;
+                    let crawl_cycle = (t * 3.0 + phase * std::f32::consts::PI).sin();
+                    let reach = 8.0 + crawl_cycle * 5.0;
+                    transform.translation.x = arm.side * 7.0;
+                    transform.translation.y = reach;
+                    transform.rotation = Quat::IDENTITY;
+                } else {
+                    let wobble = (t * 3.0 + arm.side * 2.0).sin() * 0.1;
+                    let base_x = arm.side * 9.5;
+                    let base_y = -2.0;
+                    let arm_reach = 6.0;
+                    transform.translation.x = base_x + facing.x * arm_reach;
+                    transform.translation.y = base_y + facing.y * arm_reach;
+                    let angle = facing.y.atan2(facing.x);
+                    transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2 + wobble);
+                }
+            }
+
+            // Augen-Animation
+            if let Ok((eye, mut transform, mut sprite)) = eye_query.get_mut(child) {
+                if crawling {
+                    sprite.custom_size = Some(Vec2::new(2.5, 2.5));
+                    transform.translation.x = eye.side * 4.0;
+                    transform.translation.y = 17.0;
+                    transform.translation.z = 3.0;
+                } else {
+                    sprite.custom_size = Some(Vec2::new(3.5, 3.5));
+                    transform.translation.x = eye.side * 4.0;
+                    transform.translation.y = 10.0;
+                    transform.translation.z = 3.0;
+                }
+            }
+
+            // Kopf-Animation: leichtes Wippen und Drehen
+            if let Ok(mut transform) = head_query.get_mut(child) {
+                let bob = (t * 2.5 * anim_speed).sin() * 0.8;
+                let sway = (t * 1.8 * anim_speed + 0.5).sin() * 0.6;
+                let tilt = (t * 2.0 * anim_speed + 1.0).sin() * 0.04;
+                transform.translation.x = sway;
+                transform.translation.y = 8.0 + bob;
+                transform.rotation = Quat::from_rotation_z(tilt);
+            }
+
+            // Koerper-Animation: leichtes Schwanken
+            if let Ok(mut transform) = body_query.get_mut(child) {
+                let sway = (t * 2.5 * anim_speed + 2.0).sin() * 0.4;
+                let bob = (t * 2.5 * anim_speed).sin() * 0.3;
+                let tilt = (t * 2.0 * anim_speed + 0.7).sin() * 0.025;
+                transform.translation.x = sway;
+                transform.translation.y = -4.0 + bob;
+                transform.rotation = Quat::from_rotation_z(tilt);
             }
         }
     }

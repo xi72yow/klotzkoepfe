@@ -130,7 +130,7 @@ pub fn bullet_zombie_collision(
                     if let Some(ch) = children {
                         let bullet_dir = (zombie_pos - bullet_pos).normalize_or_zero();
                         crate::systems::blood::try_dismember(
-                            &mut commands, zombie_entity, zombie_pos, bullet_dir,
+                            &mut commands, zombie_entity, &mut zombie, zombie_pos, bullet_dir,
                             ch, &zombie_arm_query, &zombie_leg_query,
                             settings.dismember_chance, settings.gib_decay_time,
                         );

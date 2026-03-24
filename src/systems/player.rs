@@ -33,10 +33,16 @@ pub fn spawn_one_player_pub(commands: &mut Commands, settings: &GameSettings, id
     spawn_one_player(commands, settings, id, x, color, facing);
 }
 
+fn darken(c: Color, factor: f32) -> Color {
+    let s = c.to_srgba();
+    Color::srgb(s.red * factor, s.green * factor, s.blue * factor)
+}
+
 fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: PlayerId, x: f32, color: Color, facing: Vec2) {
     let ws = settings.weapon(WeaponType::Pistol);
     let weapon = WeaponType::Pistol;
     let weapon_arm_side: f32 = if rand::Rng::random_bool(&mut rand::rng(), 0.5) { 1.0 } else { -1.0 };
+    let body_color = darken(color, 0.7);
 
     // Initialize magazines for all weapons
     let mut magazines = std::collections::HashMap::new();
@@ -81,9 +87,9 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 Transform::from_xyz(4.0, 10.0, 3.0),
                 PlayerEye { side: 1.0 },
             ));
-            // Koerper
+            // Koerper (dunkler als Kopf)
             parent.spawn((
-                Sprite { color, custom_size: Some(BODY_SIZE), ..default() },
+                Sprite { color: body_color, custom_size: Some(BODY_SIZE), ..default() },
                 Transform::from_xyz(0.0, -4.0, 1.0),
                 PlayerBody,
             ));
@@ -99,10 +105,10 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 Transform::from_xyz(LEG_SPACING, -14.0, 0.5),
                 PlayerLeg { side: 1.0 },
             ));
-            // Linker Arm
+            // Linker Arm (Waffen-Arm = Koerperfarbe/Aermel, anderer = Hautfarbe)
             parent.spawn((
                 Sprite {
-                    color: if weapon_arm_side < 0.0 { color } else { skin_color() },
+                    color: if weapon_arm_side < 0.0 { body_color } else { skin_color() },
                     custom_size: Some(ARM_SIZE),
                     ..default()
                 },
@@ -112,7 +118,7 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
             // Rechter Arm
             parent.spawn((
                 Sprite {
-                    color: if weapon_arm_side > 0.0 { color } else { skin_color() },
+                    color: if weapon_arm_side > 0.0 { body_color } else { skin_color() },
                     custom_size: Some(ARM_SIZE),
                     ..default()
                 },
@@ -184,7 +190,8 @@ pub fn player_movement(
             }
         }
         if direction != Vec2::ZERO {
-            player.facing = direction.normalize();
+            direction = direction.normalize();
+            player.facing = direction;
         }
         transform.translation.x += direction.x * settings.player_speed * time.delta_secs();
         transform.translation.y += direction.y * settings.player_speed * time.delta_secs();
@@ -197,10 +204,12 @@ pub fn player_walk_animation(
     time: Res<Time>,
     player_query: Query<(&Player, &Children)>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut leg_query: Query<(&PlayerLeg, &mut Transform), (Without<Player>, Without<PlayerArm>, Without<PlayerEye>, Without<WeaponSprite>)>,
-    mut eye_query: Query<(&PlayerEye, &mut Transform, &mut Visibility), (Without<Player>, Without<PlayerLeg>, Without<PlayerArm>, Without<WeaponSprite>)>,
-    mut arm_query: Query<(&PlayerArm, &mut Transform), (Without<Player>, Without<PlayerLeg>, Without<PlayerEye>, Without<WeaponSprite>)>,
-    mut weapon_query: Query<(&WeaponSprite, &mut Transform), (Without<Player>, Without<PlayerLeg>, Without<PlayerEye>, Without<PlayerArm>)>,
+    mut leg_query: Query<(&PlayerLeg, &mut Transform), (Without<Player>, Without<PlayerArm>, Without<PlayerEye>, Without<WeaponSprite>, Without<PlayerHead>, Without<PlayerBody>)>,
+    mut eye_query: Query<(&PlayerEye, &mut Transform, &mut Visibility), (Without<Player>, Without<PlayerLeg>, Without<PlayerArm>, Without<WeaponSprite>, Without<PlayerHead>, Without<PlayerBody>)>,
+    mut arm_query: Query<(&PlayerArm, &mut Transform), (Without<Player>, Without<PlayerLeg>, Without<PlayerEye>, Without<WeaponSprite>, Without<PlayerHead>, Without<PlayerBody>)>,
+    mut weapon_query: Query<(&WeaponSprite, &mut Transform), (Without<Player>, Without<PlayerLeg>, Without<PlayerEye>, Without<PlayerArm>, Without<PlayerHead>, Without<PlayerBody>)>,
+    mut head_query: Query<&mut Transform, (With<PlayerHead>, Without<Player>, Without<PlayerLeg>, Without<PlayerArm>, Without<PlayerEye>, Without<WeaponSprite>, Without<PlayerBody>)>,
+    mut body_query: Query<&mut Transform, (With<PlayerBody>, Without<Player>, Without<PlayerLeg>, Without<PlayerArm>, Without<PlayerEye>, Without<WeaponSprite>, Without<PlayerHead>)>,
 ) {
     for (player, children) in player_query.iter() {
         let is_moving = match player.id {
@@ -209,10 +218,20 @@ pub fn player_walk_animation(
         };
 
         let facing = player.facing;
-        let facing_down = facing.y < -0.3;
         let facing_up = facing.y > 0.3;
-        let facing_right = facing.x > 0.3;
-        let facing_left = facing.x < -0.3;
+        let t = time.elapsed_secs();
+
+        // Erst Waffen-Arm-Position bestimmen
+        let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0);
+        for child in children.iter() {
+            if let Ok((arm, _)) = arm_query.get_mut(child) {
+                if arm.has_weapon {
+                    let base_x = ARM_OFFSET_X * arm.side;
+                    let base_y = -2.0;
+                    weapon_arm_pos = Vec2::new(base_x + facing.x * 2.0, base_y + facing.y * 1.5);
+                }
+            }
+        }
 
         for child in children.iter() {
             // Bein-Animation: Beine bewegen sich in Laufrichtung
@@ -221,9 +240,8 @@ pub fn player_walk_animation(
                 let base_y = -14.0;
 
                 if is_moving {
-                    let phase = leg.side; // linkes und rechtes Bein gegenphasig
-                    let swing = (time.elapsed_secs() * 12.0 + phase * std::f32::consts::PI).sin() * 3.0;
-                    // Beine bewegen sich in Laufrichtung
+                    let phase = leg.side;
+                    let swing = (t * 12.0 + phase * std::f32::consts::PI).sin() * 3.0;
                     transform.translation.x = base_x + facing.x * swing;
                     transform.translation.y = base_y + facing.y * swing;
                 } else {
@@ -235,11 +253,9 @@ pub fn player_walk_animation(
             // Augen: sichtbar wenn nach unten/seitlich schauend, versteckt wenn nach oben
             if let Ok((eye, mut transform, mut vis)) = eye_query.get_mut(child) {
                 if facing_up {
-                    // Nach oben: Hinterkopf, keine Augen
                     *vis = Visibility::Hidden;
                 } else {
                     *vis = Visibility::Visible;
-                    // Augen folgen leicht der Blickrichtung
                     let eye_base_x = 4.0 * eye.side;
                     transform.translation.x = eye_base_x + facing.x * 2.0;
                     transform.translation.y = 10.0 + facing.y * 1.0;
@@ -250,24 +266,54 @@ pub fn player_walk_animation(
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
                 let base_x = ARM_OFFSET_X * arm.side;
                 let base_y = -2.0;
-                // Arme leicht in Blickrichtung verschieben
                 transform.translation.x = base_x + facing.x * 2.0;
                 transform.translation.y = base_y + facing.y * 1.5;
-                // Arm rotieren: kurze Seite zeigt in Facing-Richtung
                 let angle = facing.y.atan2(facing.x);
                 transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2);
             }
 
-            // Waffe: in Blickrichtung positionieren
+            // Waffe: auf den Waffen-Arm platzieren
             if let Ok((_ws, mut transform)) = weapon_query.get_mut(child) {
                 let weapon = player.weapon;
                 let ws_size = weapon.sprite_size();
-                // Waffe zeigt in Blickrichtung
-                transform.translation.x = facing.x * (ARM_OFFSET_X + ws_size.x / 2.0 + 2.0);
-                transform.translation.y = -2.0 + facing.y * (ARM_OFFSET_X + ws_size.y / 2.0);
-                // Waffe rotieren in Blickrichtung
                 let angle = facing.y.atan2(facing.x);
+                // Waffe am Arm-Ende in Facing-Richtung
+                transform.translation.x = weapon_arm_pos.x + facing.x * (ws_size.x / 2.0 + 2.0);
+                transform.translation.y = weapon_arm_pos.y + facing.y * (ws_size.y / 2.0 + 2.0);
                 transform.rotation = Quat::from_rotation_z(angle);
+            }
+
+            // Kopf: leichtes Wippen beim Laufen
+            if let Ok(mut transform) = head_query.get_mut(child) {
+                if is_moving {
+                    let bob = (t * 12.0).sin() * 0.6;
+                    let sway = (t * 6.0).sin() * 0.4;
+                    transform.translation.x = sway;
+                    transform.translation.y = 8.0 + bob;
+                    transform.rotation = Quat::from_rotation_z((t * 6.0).sin() * 0.03);
+                } else {
+                    // Idle: subtiles Atmen
+                    let breathe = (t * 1.5).sin() * 0.3;
+                    transform.translation.x = 0.0;
+                    transform.translation.y = 8.0 + breathe;
+                    transform.rotation = Quat::IDENTITY;
+                }
+            }
+
+            // Koerper: leichtes Schwanken beim Laufen
+            if let Ok(mut transform) = body_query.get_mut(child) {
+                if is_moving {
+                    let bob = (t * 12.0 + 1.0).sin() * 0.4;
+                    let sway = (t * 6.0 + 0.5).sin() * 0.3;
+                    transform.translation.x = sway;
+                    transform.translation.y = -4.0 + bob;
+                    transform.rotation = Quat::from_rotation_z((t * 6.0 + 0.5).sin() * 0.02);
+                } else {
+                    let breathe = (t * 1.5 + 0.5).sin() * 0.2;
+                    transform.translation.x = 0.0;
+                    transform.translation.y = -4.0 + breathe;
+                    transform.rotation = Quat::IDENTITY;
+                }
             }
         }
     }
@@ -582,22 +628,33 @@ pub fn update_player_hp_bars(
 
 pub fn update_weapon_sprites(
     player_query: Query<(&Player, &Children)>,
-    mut weapon_query: Query<(&mut Sprite, &mut Transform), (With<WeaponSprite>, Without<Player>)>,
+    arm_query: Query<(&PlayerArm, &Transform), Without<WeaponSprite>>,
+    mut weapon_query: Query<(&mut Sprite, &mut Transform), (With<WeaponSprite>, Without<Player>, Without<PlayerArm>)>,
 ) {
     for (player, children) in player_query.iter() {
         let facing = player.facing;
+
+        // Waffen-Arm-Position finden
+        let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0);
+        for child in children.iter() {
+            if let Ok((arm, arm_transform)) = arm_query.get(child) {
+                if arm.has_weapon {
+                    weapon_arm_pos = Vec2::new(arm_transform.translation.x, arm_transform.translation.y);
+                }
+            }
+        }
+
         for child in children.iter() {
             if let Ok((mut sprite, mut transform)) = weapon_query.get_mut(child) {
                 let size = player.weapon.sprite_size();
                 sprite.custom_size = Some(size);
                 sprite.color = player.weapon.sprite_color();
 
-                // Waffe in Blickrichtung positionieren
-                let offset = ARM_OFFSET_X + size.x / 2.0 + 2.0;
-                transform.translation.x = facing.x * offset;
-                transform.translation.y = -2.0 + facing.y * offset;
-
+                // Waffe am Waffen-Arm platzieren
                 let angle = facing.y.atan2(facing.x);
+                transform.translation.x = weapon_arm_pos.x + facing.x * (size.x / 2.0 + 2.0);
+                transform.translation.y = weapon_arm_pos.y + facing.y * (size.y / 2.0 + 2.0);
+
                 if player.reloading {
                     let wobble = (player.reload_elapsed * 20.0).sin() * 0.3;
                     transform.rotation = Quat::from_rotation_z(angle + wobble);

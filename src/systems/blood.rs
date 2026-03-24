@@ -48,6 +48,7 @@ pub fn spawn_blood_with_settings(commands: &mut Commands, position: Vec2, partic
 pub fn try_dismember(
     commands: &mut Commands,
     zombie_entity: Entity,
+    zombie: &mut Zombie,
     zombie_pos: Vec2,
     bullet_dir: Vec2,
     children: &Children,
@@ -59,21 +60,21 @@ pub fn try_dismember(
     let mut rng = rand::rng();
     if !rng.random_bool(dismember_chance as f64) { return; }
 
-    // Sammle abreissbare Teile
-    let mut candidates: Vec<(Entity, Vec2, Vec2, Color)> = Vec::new();
+    // Sammle abreissbare Teile: (entity, size, offset, color, is_leg)
+    let mut candidates: Vec<(Entity, Vec2, Vec2, Color, bool)> = Vec::new();
 
     for child in children.iter() {
         if let Ok((e, _arm, sprite, t)) = arm_query.get(child) {
             let size = sprite.custom_size.unwrap_or(Vec2::new(5.0, 12.0));
             let color = sprite.color;
             let world_offset = Vec2::new(t.translation.x, t.translation.y);
-            candidates.push((e, size, world_offset, color));
+            candidates.push((e, size, world_offset, color, false));
         }
         if let Ok((e, _leg, sprite, t)) = leg_query.get(child) {
             let size = sprite.custom_size.unwrap_or(Vec2::new(5.0, 8.0));
             let color = sprite.color;
             let world_offset = Vec2::new(t.translation.x, t.translation.y);
-            candidates.push((e, size, world_offset, color));
+            candidates.push((e, size, world_offset, color, true));
         }
     }
 
@@ -81,7 +82,14 @@ pub fn try_dismember(
 
     // Zufaelliges Teil auswaehlen
     let idx = rng.random_range(0..candidates.len());
-    let (part_entity, size, offset, color) = candidates[idx];
+    let (part_entity, size, offset, color, is_leg) = candidates[idx];
+
+    // Mobility tracken
+    if is_leg {
+        zombie.legs_remaining = zombie.legs_remaining.saturating_sub(1);
+    } else {
+        zombie.arms_remaining = zombie.arms_remaining.saturating_sub(1);
+    }
 
     // Teil vom Zombie entfernen
     commands.entity(part_entity).despawn();

@@ -310,6 +310,17 @@ pub struct ZombieArm {
     pub side: f32,
 }
 
+#[derive(Component)]
+pub struct ZombieEye {
+    pub side: f32,
+}
+
+#[derive(Component)]
+pub struct ZombieHead;
+
+#[derive(Component)]
+pub struct ZombieBody;
+
 /// Zombie-Variante (0, 1, 2) fuer verschiedene Looks
 #[derive(Component, Clone, Copy)]
 pub struct ZombieVariant(pub u8);
@@ -357,6 +368,9 @@ pub struct Zombie {
     pub speed_modifier: f32,
     pub freeze_timer: Timer,
     pub groan_timer: Timer,
+    pub legs_remaining: u8,
+    pub arms_remaining: u8,
+    pub crawl_transition: f32, // 0.0 = stehend, 1.0 = liegend
 }
 
 #[derive(Component)]
