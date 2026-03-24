@@ -335,7 +335,9 @@ pub fn cone_beam_damage(
 
             match beam.beam_type {
                 ConeBeamType::Flame => {
-                    health.current -= ws.damage * 0.1;
+                    let dmg = ws.damage * 0.1;
+                    health.current -= dmg;
+                    zombie.fire_visual += dmg * 4.0;
                     if let Ok(mut ec) = commands.get_entity(zombie_entity) {
                         ec.try_insert(Burning {
                             damage_per_second: ws.damage * 0.3,
@@ -349,7 +351,9 @@ pub fn cone_beam_damage(
                     }
                 }
                 ConeBeamType::Freeze => {
-                    health.current -= ws.damage * 0.03;
+                    let dmg = ws.damage * 0.03;
+                    health.current -= dmg;
+                    zombie.freeze_visual += dmg * 8.0;
                     zombie.speed_modifier = if ws.slow_factor > 0.0 { ws.slow_factor } else { 0.15 };
                     zombie.freeze_timer = Timer::from_seconds(
                         if ws.slow_duration > 0.0 { ws.slow_duration } else { 3.0 },

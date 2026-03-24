@@ -370,6 +370,8 @@ pub struct Zombie {
     pub legs_remaining: u8,
     pub arms_remaining: u8,
     pub crawl_transition: f32, // 0.0 = stehend, 1.0 = liegend
+    pub fire_visual: f32, // Akkumulierter Flammenwerfer-Schaden fuer Verkohlungs-Optik
+    pub freeze_visual: f32, // Akkumulierter Frostkanone-Schaden fuer Einfrieren-Optik
 }
 
 #[derive(Component)]
@@ -538,6 +540,10 @@ pub struct ShaderExplosion {
     pub damaged: bool,
     pub level: u32,
 }
+
+/// Speichert die urspruengliche Farbe eines Zombie-Sprites fuer elementare Effekte
+#[derive(Component, Clone, Copy)]
+pub struct OriginalColor(pub Color);
 
 #[derive(Component)]
 pub struct BaseCrateSpawner {

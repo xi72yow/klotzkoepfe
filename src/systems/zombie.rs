@@ -99,6 +99,8 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
                 legs_remaining: 2,
                 arms_remaining: 2,
                 crawl_transition: 0.0,
+                fire_visual: 0.0,
+                freeze_visual: 0.0,
             },
             Health { current: hp, max: hp },
             ZombieVariant(variant),
@@ -108,6 +110,7 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
         entity_cmds.insert(BigZombie);
     }
 
+    let eye_color = Color::srgb(0.9, 0.1, 0.1);
     entity_cmds
         .with_children(|parent| {
             // Kopf
@@ -115,47 +118,55 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
                 Sprite { color: head_color, custom_size: Some(head_size), ..default() },
                 Transform::from_xyz(0.0, 8.0, 2.0),
                 ZombieHead,
+                OriginalColor(head_color),
             ));
             // Augen (rote Punkte)
             parent.spawn((
-                Sprite { color: Color::srgb(0.9, 0.1, 0.1), custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
+                Sprite { color: eye_color, custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
                 Transform::from_xyz(-4.0, 10.0, 3.0),
                 ZombieEye { side: -1.0 },
+                OriginalColor(eye_color),
             ));
             parent.spawn((
-                Sprite { color: Color::srgb(0.9, 0.1, 0.1), custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
+                Sprite { color: eye_color, custom_size: Some(Vec2::new(3.5, 3.5)), ..default() },
                 Transform::from_xyz(4.0, 10.0, 3.0),
                 ZombieEye { side: 1.0 },
+                OriginalColor(eye_color),
             ));
             // Koerper
             parent.spawn((
                 Sprite { color: body_color, custom_size: Some(body_size), ..default() },
                 Transform::from_xyz(0.0, -4.0, 1.0),
                 ZombieBody,
+                OriginalColor(body_color),
             ));
             // Linkes Bein
             parent.spawn((
                 Sprite { color: leg_color, custom_size: Some(leg_size), ..default() },
                 Transform::from_xyz(-5.0, -14.0, 0.5),
                 ZombieLeg { side: -1.0 },
+                OriginalColor(leg_color),
             ));
             // Rechtes Bein
             parent.spawn((
                 Sprite { color: leg_color, custom_size: Some(leg_size), ..default() },
                 Transform::from_xyz(5.0, -14.0, 0.5),
                 ZombieLeg { side: 1.0 },
+                OriginalColor(leg_color),
             ));
             // Linker Arm (ausgestreckt)
             parent.spawn((
                 Sprite { color: arm_color, custom_size: Some(arm_size), ..default() },
                 Transform::from_xyz(-9.5, -2.0, 0.5),
                 ZombieArm { side: -1.0 },
+                OriginalColor(arm_color),
             ));
             // Rechter Arm (ausgestreckt)
             parent.spawn((
                 Sprite { color: arm_color, custom_size: Some(arm_size), ..default() },
                 Transform::from_xyz(9.5, -2.0, 0.5),
                 ZombieArm { side: 1.0 },
+                OriginalColor(arm_color),
             ));
         });
 }
@@ -251,41 +262,45 @@ pub fn zombie_animation(
 
         let t = time.elapsed_secs();
         let is_frozen = zombie.speed_modifier < 0.5;
-        let anim_speed = if is_frozen { 0.3 } else { 1.0 };
+        let is_solid_ice = zombie.speed_modifier <= 0.0;
+        let anim_speed = if is_solid_ice { 0.0 } else if is_frozen { 0.3 } else { 1.0 };
 
         for child in children.iter() {
             // Bein-Animation
             if let Ok((leg, mut transform)) = leg_query.get_mut(child) {
-                if crawling {
-                    // Verbleibendes Bein wiggelt hilflos
-                    let wiggle = (t * 6.0 + leg.side).sin() * 2.0;
-                    transform.translation.x = 4.0 * leg.side + wiggle;
-                    transform.translation.y = -13.0 + (t * 4.0).sin().abs() * 1.5;
-                } else {
-                    let swing = (t * 4.0 * anim_speed + leg.side * std::f32::consts::PI).sin() * 2.5;
-                    transform.translation.x = 4.0 * leg.side + facing.x * swing;
-                    transform.translation.y = -13.0 + facing.y * swing;
+                if !is_solid_ice {
+                    if crawling {
+                        let wiggle = (t * 6.0 + leg.side).sin() * 2.0;
+                        transform.translation.x = 4.0 * leg.side + wiggle;
+                        transform.translation.y = -13.0 + (t * 4.0).sin().abs() * 1.5;
+                    } else {
+                        let swing = (t * 4.0 * anim_speed + leg.side * std::f32::consts::PI).sin() * 2.5;
+                        transform.translation.x = 4.0 * leg.side + facing.x * swing;
+                        transform.translation.y = -13.0 + facing.y * swing;
+                    }
                 }
             }
 
             // Arm-Animation
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
-                if crawling {
-                    let phase = arm.side;
-                    let crawl_cycle = (t * 3.0 + phase * std::f32::consts::PI).sin();
-                    let reach = 8.0 + crawl_cycle * 5.0;
-                    transform.translation.x = arm.side * 7.0;
-                    transform.translation.y = reach;
-                    transform.rotation = Quat::IDENTITY;
-                } else {
-                    let wobble = (t * 3.0 + arm.side * 2.0).sin() * 0.1;
-                    let base_x = arm.side * 9.5;
-                    let base_y = -2.0;
-                    let arm_reach = 6.0;
-                    transform.translation.x = base_x + facing.x * arm_reach;
-                    transform.translation.y = base_y + facing.y * arm_reach;
-                    let angle = facing.y.atan2(facing.x);
-                    transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2 + wobble);
+                if !is_solid_ice {
+                    if crawling {
+                        let phase = arm.side;
+                        let crawl_cycle = (t * 3.0 + phase * std::f32::consts::PI).sin();
+                        let reach = 8.0 + crawl_cycle * 5.0;
+                        transform.translation.x = arm.side * 7.0;
+                        transform.translation.y = reach;
+                        transform.rotation = Quat::IDENTITY;
+                    } else {
+                        let wobble = (t * 3.0 + arm.side * 2.0).sin() * 0.1;
+                        let base_x = arm.side * 9.5;
+                        let base_y = -2.0;
+                        let arm_reach = 6.0;
+                        transform.translation.x = base_x + facing.x * arm_reach;
+                        transform.translation.y = base_y + facing.y * arm_reach;
+                        let angle = facing.y.atan2(facing.x);
+                        transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2 + wobble);
+                    }
                 }
             }
 
@@ -371,7 +386,7 @@ pub fn burning_system(
         burning.tick_timer.tick(time.delta());
 
         if burning.tick_timer.just_finished() {
-            health.current -= burning.damage_per_second * 0.25; // Tick every 0.25s
+            health.current -= burning.damage_per_second * 0.25;
             crate::systems::blood::spawn_blood(&mut commands, transform.translation.truncate());
 
             // Fire jump to nearby zombies
@@ -425,19 +440,140 @@ pub fn stun_system(
 
 pub fn freeze_stack_system(
     time: Res<Time>,
-    mut query: Query<(&mut FreezeStacks, &mut Zombie, &mut Sprite)>,
+    mut query: Query<(&mut FreezeStacks, &mut Zombie, &mut Sprite, &Health)>,
 ) {
-    for (mut stacks, mut zombie, mut sprite) in query.iter_mut() {
+    for (mut stacks, mut zombie, mut sprite, health) in query.iter_mut() {
         if stacks.frozen {
             stacks.frozen_timer.tick(time.delta());
             zombie.speed_modifier = 0.0;
-            // Tint blue
-            sprite.color = Color::srgb(0.5, 0.8, 1.0);
+            sprite.color = Color::NONE;
             if stacks.frozen_timer.is_finished() {
                 stacks.frozen = false;
                 stacks.hits = 0;
-                zombie.speed_modifier = 1.0;
-                sprite.color = Color::NONE; // Root sprite is invisible
+                // Nur auftauen wenn nicht permanent vereist
+                let freeze_factor = (zombie.freeze_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+                if freeze_factor < 0.95 {
+                    zombie.speed_modifier = 1.0;
+                }
+                sprite.color = Color::NONE;
+            }
+        }
+    }
+}
+
+/// Frost taut ueber Zeit auf (freeze_visual zerfaellt), voll vereist = permanent
+pub fn zombie_freeze_thaw(
+    time: Res<Time>,
+    mut query: Query<(&mut Zombie, &Health)>,
+) {
+    let dt = time.delta_secs();
+    for (mut zombie, health) in query.iter_mut() {
+        if zombie.freeze_visual > 0.0 {
+            let freeze_factor = (zombie.freeze_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+
+            // Voll vereist (>= 95%): permanenter Eisblock, kein Auftauen
+            if freeze_factor >= 0.95 {
+                continue;
+            }
+
+            // Langsames Auftauen: 8% pro Sekunde
+            zombie.freeze_visual = (zombie.freeze_visual - zombie.freeze_visual.max(0.5) * 0.08 * dt).max(0.0);
+        }
+    }
+}
+
+/// Visuelles Damage-System: Flammenwerfer verkohlt + schrumpft leicht, Eis faerbt blau + friert ein
+pub fn zombie_elemental_visuals(
+    mut zombie_query: Query<(
+        &mut Zombie,
+        &Health,
+        &Children,
+    )>,
+    mut sprite_query: Query<(&mut Sprite, &mut Transform, &OriginalColor), (
+        Without<Zombie>,
+        Or<(
+            With<ZombieHead>, With<ZombieBody>,
+            With<ZombieArm>, With<ZombieLeg>,
+            With<ZombieEye>,
+        )>,
+    )>,
+) {
+    for (mut zombie, health, children) in zombie_query.iter_mut() {
+        // Feuer: burn_factor 0..1, voller Effekt bei 50% max HP Schaden
+        let burn_factor = (zombie.fire_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+
+        // Eis: freeze_factor 0..1, voller Effekt bei 50% max HP Schaden
+        let freeze_factor = (zombie.freeze_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+
+        // Voll vereist: Zombie bleibt stehen
+        if freeze_factor > 0.8 {
+            zombie.speed_modifier = 0.0;
+        } else if freeze_factor > 0.3 {
+            // Teilweise verlangsamt
+            let slow = 1.0 - (freeze_factor - 0.3) / 0.5 * 0.85; // 100% -> 15%
+            if zombie.speed_modifier > slow {
+                zombie.speed_modifier = slow;
+            }
+        }
+
+        if burn_factor < 0.01 && freeze_factor < 0.01 { continue; }
+
+        // Scale-Faktoren berechnen (absolut, nicht kumulativ)
+        let mut scale_x = 1.0f32;
+        let mut scale_y = 1.0f32;
+
+        if burn_factor > 0.0 {
+            // Schrumpft bis 75%, dann Stopp
+            let shrink_t = (burn_factor / 0.69).min(1.0);
+            scale_x *= 1.0 - shrink_t * 0.25;
+        }
+
+        if freeze_factor > 0.0 {
+            // Waechst bis 125% - deutlich sichtbar
+            let grow = 1.0 + freeze_factor * 0.25;
+            scale_x *= grow;
+            scale_y *= grow;
+        }
+
+        for child in children.iter() {
+            if let Ok((mut sprite, mut transform, original)) = sprite_query.get_mut(child) {
+                let orig = original.0.to_srgba();
+
+                let mut r = orig.red;
+                let mut g = orig.green;
+                let mut b = orig.blue;
+
+                // Feuer: Erst nur leicht abdunkeln (Gamma), dann staerker abdunkeln
+                // KEIN Rot-Shift - Originalfarbe bleibt erkennbar
+                if burn_factor > 0.0 {
+                    // Phase 1 (0-0.5): leichte Gamma-Abdunklung
+                    // Phase 2 (0.5-1.0): staerkere Abdunklung
+                    let gamma_boost = 1.0 + burn_factor * 0.8; // Gamma 1.0 -> 1.8
+                    r = r.powf(gamma_boost);
+                    g = g.powf(gamma_boost);
+                    b = b.powf(gamma_boost);
+
+                    // Ab 50% nochmal gleichmaessig abdunkeln
+                    if burn_factor > 0.5 {
+                        let extra_dark = 1.0 - (burn_factor - 0.5) * 0.6; // 1.0 -> 0.7
+                        r *= extra_dark;
+                        g *= extra_dark;
+                        b *= extra_dark;
+                    }
+                }
+
+                // Eis: Originalfarbe wird blauer/heller, am Ende fast weiss-blau
+                if freeze_factor > 0.0 {
+                    let t = freeze_factor;
+                    // Stark nach weiss-blau verschieben
+                    r = r * (1.0 - t * 0.7) + t * 0.6;
+                    g = g * (1.0 - t * 0.5) + t * 0.75;
+                    b = b * (1.0 - t * 0.2) + t * 0.95;
+                }
+
+                sprite.color = Color::srgb(r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0));
+                transform.scale.x = scale_x;
+                transform.scale.y = scale_y;
             }
         }
     }

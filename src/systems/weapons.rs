@@ -154,10 +154,17 @@ pub fn spinning_system(
 // --- Zombie Freeze Timer ---
 pub fn zombie_freeze_update(
     time: Res<Time>,
-    mut query: Query<&mut Zombie>,
+    mut query: Query<(&mut Zombie, &Health)>,
 ) {
-    for mut zombie in query.iter_mut() {
+    for (mut zombie, health) in query.iter_mut() {
         if zombie.speed_modifier < 1.0 {
+            // Permanent vereist: nicht auftauen
+            let freeze_factor = (zombie.freeze_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+            if freeze_factor >= 0.95 {
+                zombie.speed_modifier = 0.0;
+                continue;
+            }
+
             zombie.freeze_timer.tick(time.delta());
             if zombie.freeze_timer.is_finished() {
                 zombie.speed_modifier = 1.0;
