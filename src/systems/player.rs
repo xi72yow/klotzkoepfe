@@ -372,14 +372,20 @@ pub fn player_walk_animation(
         let facing_up = facing.y > 0.3;
         let t = time.elapsed_secs();
 
-        // Erst Waffen-Arm-Position bestimmen
-        let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0);
+        // Erst Waffen-Arm-Position und -Seite bestimmen (Hip-Fire: nah am Koerper)
+        // Bei seitlicher Blickrichtung: Waffe auf Armhoehe (-2.0)
+        // Bei vertikaler Blickrichtung: Waffe tiefer am Koerper (Huefthoehe)
+        let vert_factor = facing.y.abs(); // 0 = seitlich, 1 = vertikal
+        let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0 - vert_factor * 3.0);
+        let mut weapon_arm_side = 1.0f32;
         for child in children.iter() {
             if let Ok((arm, _)) = arm_query.get_mut(child) {
                 if arm.has_weapon {
+                    weapon_arm_side = arm.side;
                     let base_x = ARM_OFFSET_X * arm.side;
-                    let base_y = -2.0;
-                    weapon_arm_pos = Vec2::new(base_x + facing.x * 2.0, base_y + facing.y * 1.5);
+                    let base_y = -2.0 - vert_factor * 3.0;
+                    let lean = 1.5;
+                    weapon_arm_pos = Vec2::new(base_x + facing.x * lean, base_y + facing.y * lean);
                 }
             }
         }
@@ -415,18 +421,19 @@ pub fn player_walk_animation(
 
             // Arme
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
+                let base_x = ARM_OFFSET_X * arm.side;
+                let base_y = -2.0;
                 if arm.has_weapon {
-                    // Waffen-Arm: zeigt in Facing-Richtung
-                    let base_x = ARM_OFFSET_X * arm.side;
-                    let base_y = -2.0;
-                    transform.translation.x = base_x + facing.x * 2.0;
-                    transform.translation.y = base_y + facing.y * 1.5;
-                    let angle = facing.y.atan2(facing.x);
-                    transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2);
+                    // Waffen-Arm: bleibt seitlich, leicht nach vorne (Hip-Fire Rambo-Stil)
+                    let lean = 1.5;
+                    let vert_drop = facing.y.abs() * 3.0; // tiefer bei vertikaler Blickrichtung
+                    transform.translation.x = base_x + facing.x * lean;
+                    transform.translation.y = base_y - vert_drop + facing.y * lean;
+                    // Keine extreme Rotation - nur leichter Tilt in Blickrichtung
+                    let tilt = facing.x * arm.side * 0.15;
+                    transform.rotation = Quat::from_rotation_z(tilt);
                 } else {
                     // Freier Arm: haengt locker runter, wackelt dynamisch
-                    let base_x = ARM_OFFSET_X * arm.side;
-                    let base_y = -2.0;
                     if is_moving {
                         let swing = (t * 8.0 + arm.side * std::f32::consts::PI).sin();
                         transform.translation.x = base_x + swing * 1.5;
@@ -442,15 +449,25 @@ pub fn player_walk_animation(
                 }
             }
 
-            // Waffe: auf den Waffen-Arm platzieren
+            // Waffe: Hip-Fire Position (nah am Koerper, auf Huefthoehe)
             if let Ok((_ws, mut transform)) = weapon_query.get_mut(child) {
                 let weapon = player.weapon;
                 let ws_size = weapon.sprite_size();
                 let angle = facing.y.atan2(facing.x);
-                // Waffe am Arm-Ende in Facing-Richtung
-                transform.translation.x = weapon_arm_pos.x + facing.x * (ws_size.x / 2.0 + 2.0);
-                transform.translation.y = weapon_arm_pos.y + facing.y * (ws_size.y / 2.0 + 2.0);
+                // Lauf (.x) ist immer Vorwaerts-Achse (Waffe wird rotiert)
+                let hip_offset = 3.0;
+                let forward = ws_size.x / 2.0 + hip_offset;
+                transform.translation.x = weapon_arm_pos.x + facing.x * forward;
+                transform.translation.y = weapon_arm_pos.y + facing.y * forward;
                 transform.rotation = Quat::from_rotation_z(angle);
+                // Perspektive: vertikal = Draufsicht (Y stauchen), horizontal = Seitenansicht (Y flip)
+                let ws = WEAPON_SCALE;
+                let vert = facing.y.abs(); // 0 = seitlich, 1 = hoch/runter
+                let squish = 1.0 - vert * 0.5; // 1.0 seitlich, 0.5 vertikal
+                let flip = if facing.x < -0.1 { -1.0 }
+                    else if facing.x > 0.1 { 1.0 }
+                    else { weapon_arm_side }; // bei rein vertikal: Arm-Seite bestimmt Flip
+                transform.scale = Vec3::new(ws, flip * squish * ws, 1.0);
             }
 
             // Kopf: leichtes Wippen beim Laufen
@@ -548,14 +565,19 @@ pub fn player_weapon_switch(
     }
 }
 
+/// Waffen-Skalierungsfaktor (muss mit walk_animation/update_weapon_sprites uebereinstimmen)
+pub const WEAPON_SCALE: f32 = 1.8;
+
 /// Berechnet die Waffenspitze (Muendung) in Weltkoordinaten
 pub fn weapon_tip(player: &Player, player_pos: Vec2, weapon_arm_pos: Vec2) -> Vec2 {
     let facing = player.facing;
     let ws_size = player.weapon.sprite_size();
-    // Waffe sitzt am Arm-Ende + halbe Waffenlaenge + offset in Facing-Richtung
-    let tip_x = weapon_arm_pos.x + facing.x * (ws_size.x / 2.0 + 2.0 + ws_size.x / 2.0);
-    let tip_y = weapon_arm_pos.y + facing.y * (ws_size.y / 2.0 + 2.0 + ws_size.y / 2.0);
-    player_pos + Vec2::new(tip_x, tip_y)
+    let hip_offset = 3.0;
+    // Lauflänge (.x) ist immer die Vorwärts-Achse (Waffe wird rotiert)
+    // Container-Mitte = arm + (halbe unscaled Länge + hip_offset) in Blickrichtung
+    // Spitze = Mitte + halbe Länge * Scale in Blickrichtung
+    let forward_dist = ws_size.x / 2.0 + hip_offset + ws_size.x / 2.0 * WEAPON_SCALE;
+    player_pos + Vec2::new(weapon_arm_pos.x, weapon_arm_pos.y) + facing * forward_dist
 }
 
 pub fn player_shoot(
@@ -824,11 +846,13 @@ pub fn update_weapon_sprites(
     for (player, children) in player_query.iter() {
         let facing = player.facing;
 
-        // Waffen-Arm-Position finden
+        // Waffen-Arm-Position und -Seite finden
         let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0);
+        let mut weapon_arm_side = 1.0f32;
         for child in children.iter() {
             if let Ok((arm, arm_transform)) = arm_query.get(child) {
                 if arm.has_weapon {
+                    weapon_arm_side = arm.side;
                     weapon_arm_pos = Vec2::new(arm_transform.translation.x, arm_transform.translation.y);
                 }
             }
@@ -838,10 +862,21 @@ pub fn update_weapon_sprites(
             if let Ok(mut transform) = weapon_query.get_mut(child) {
                 let size = player.weapon.sprite_size();
 
-                // Waffe am Waffen-Arm platzieren
+                // Lauf (.x) ist immer Vorwaerts-Achse (Waffe wird rotiert)
                 let angle = facing.y.atan2(facing.x);
-                transform.translation.x = weapon_arm_pos.x + facing.x * (size.x / 2.0 + 2.0);
-                transform.translation.y = weapon_arm_pos.y + facing.y * (size.y / 2.0 + 2.0);
+                let hip_offset = 3.0;
+                let forward = size.x / 2.0 + hip_offset;
+                transform.translation.x = weapon_arm_pos.x + facing.x * forward;
+                transform.translation.y = weapon_arm_pos.y + facing.y * forward;
+
+                // Perspektive: vertikal = Draufsicht (Y stauchen), horizontal = Seitenansicht (Y flip)
+                let ws = WEAPON_SCALE;
+                let vert = facing.y.abs();
+                let squish = 1.0 - vert * 0.5;
+                let flip = if facing.x < -0.1 { -1.0 }
+                    else if facing.x > 0.1 { 1.0 }
+                    else { weapon_arm_side };
+                transform.scale = Vec3::new(ws, flip * squish * ws, 1.0);
 
                 if player.reloading {
                     let wobble = (player.reload_elapsed * 20.0).sin() * 0.3;

@@ -164,12 +164,12 @@ pub fn cone_beam_update(
 
         let is_active = wants_shoot && !player.reloading && player.ammo > 0;
 
-        // Waffen-Arm-Position
-        let mut weapon_arm_pos = Vec2::new(9.5, -2.0);
+        // Waffen-Arm-Position (aus aktueller Arm-Transform lesen)
+        let mut weapon_arm_pos = Vec2::new(9.5, -4.0);
         for child in children.iter() {
             if let Ok((arm, arm_t)) = arm_query.get(child) {
                 if arm.has_weapon {
-                    weapon_arm_pos = Vec2::new(arm_t.translation.x, arm_t.translation.y);
+                    weapon_arm_pos = arm_t.translation.truncate();
                 }
             }
         }
@@ -179,12 +179,14 @@ pub fn cone_beam_update(
         let facing = player.facing;
         let angle = facing.y.atan2(facing.x);
 
-        // Beam-Mesh an Waffentip positionieren, halbe Laenge vorwaerts versetzt
-        let (length, _width) = match beam.beam_type {
-            ConeBeamType::Flame => (170.0, 120.0),
-            ConeBeamType::Freeze => (200.0, 170.0),
+        // Beam-Mesh an Waffentip positionieren
+        // Shader hat UV-Padding: sichtbarer Effekt startet erst bei UV.x ~0.12/0.10
+        // Mesh muss zurueckversetzt werden damit Effekt am Laufende startet
+        let (length, _width, uv_padding) = match beam.beam_type {
+            ConeBeamType::Flame => (170.0, 120.0, 0.12),
+            ConeBeamType::Freeze => (200.0, 170.0, 0.10),
         };
-        let center = tip + facing * length * 0.5;
+        let center = tip + facing * (length * 0.5 - length * uv_padding);
         transform.translation.x = center.x;
         transform.translation.y = center.y;
         transform.rotation = Quat::from_rotation_z(angle);
@@ -234,12 +236,12 @@ pub fn cone_beam_damage(
         let lvl = settings.weapon_level(player.weapon, score.points);
         let ws = settings.weapon_at_level(player.weapon, lvl);
 
-        // Waffen-Arm-Position
-        let mut weapon_arm_pos = Vec2::new(9.5, -2.0);
+        // Waffen-Arm-Position (aus aktueller Arm-Transform lesen)
+        let mut weapon_arm_pos = Vec2::new(9.5, -4.0);
         for child in children.iter() {
             if let Ok((arm, arm_t)) = arm_query.get(child) {
                 if arm.has_weapon {
-                    weapon_arm_pos = Vec2::new(arm_t.translation.x, arm_t.translation.y);
+                    weapon_arm_pos = arm_t.translation.truncate();
                 }
             }
         }

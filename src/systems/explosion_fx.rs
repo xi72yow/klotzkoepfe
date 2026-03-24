@@ -74,8 +74,9 @@ pub fn spawn_muzzle_flash_at(
     let facing = player.facing;
     let angle = facing.y.atan2(facing.x);
     let lifetime = 0.1;
+    let ws = super::player::WEAPON_SCALE;
 
-    let offset = facing * size * 0.3;
+    let offset = facing * size * ws * 0.3;
     let pos = tip_pos + offset;
 
     let material = materials.add(MuzzleFlashMaterial {
@@ -89,7 +90,7 @@ pub fn spawn_muzzle_flash_at(
         },
     });
 
-    let mesh = meshes.add(Rectangle::new(size * 2.5, size * 2.0));
+    let mesh = meshes.add(Rectangle::new(size * 2.5 * ws, size * 2.0 * ws));
 
     commands.spawn((
         Mesh2d(mesh),
@@ -135,17 +136,18 @@ pub fn update_muzzle_flashes(
         // Flash an Waffentip verankern
         for (player, pt, children) in player_query.iter() {
             if player.id == flash.owner_id {
-                let mut weapon_arm_pos = Vec2::new(9.5, -2.0);
+                let mut weapon_arm_pos = Vec2::new(9.5, -4.0);
                 for child in children.iter() {
                     if let Ok((arm, arm_t)) = arm_query.get(child) {
                         if arm.has_weapon {
-                            weapon_arm_pos = Vec2::new(arm_t.translation.x, arm_t.translation.y);
+                            weapon_arm_pos = arm_t.translation.truncate();
                         }
                     }
                 }
                 let tip = super::player::weapon_tip(player, pt.translation.truncate(), weapon_arm_pos);
                 let facing = player.facing;
-                let offset = facing * flash.flash_size * 0.3;
+                let ws = super::player::WEAPON_SCALE;
+                let offset = facing * flash.flash_size * ws * 0.3;
                 transform.translation.x = tip.x + offset.x;
                 transform.translation.y = tip.y + offset.y;
                 let angle = facing.y.atan2(facing.x);

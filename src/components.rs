@@ -166,18 +166,14 @@ impl WeaponType {
                 LinearRgba::new(1.0, 0.9, 0.6, 1.0),
                 LinearRgba::new(1.0, 0.4, 0.05, 0.9),
             )),
-            WeaponType::Flamethrower => Some((
-                LinearRgba::new(1.0, 0.8, 0.3, 1.0),
-                LinearRgba::new(1.0, 0.3, 0.0, 0.8),
-            )),
+            // Flamethrower: kein Muzzle Flash, hat Cone-Beam
+            WeaponType::Flamethrower => None,
             WeaponType::Tesla => Some((
                 LinearRgba::new(0.8, 0.8, 1.0, 1.0),
                 LinearRgba::new(0.3, 0.3, 1.0, 0.7),
             )),
-            WeaponType::FreezeGun => Some((
-                LinearRgba::new(0.8, 1.0, 1.0, 1.0),
-                LinearRgba::new(0.2, 0.7, 1.0, 0.7),
-            )),
+            // FreezeGun: kein Muzzle Flash, hat Cone-Beam
+            WeaponType::FreezeGun => None,
             WeaponType::Buzzsaw => Some((
                 LinearRgba::new(1.0, 0.9, 0.6, 1.0),
                 LinearRgba::new(0.8, 0.6, 0.2, 0.6),
