@@ -139,6 +139,71 @@ impl WeaponType {
         }
     }
 
+    /// Muzzle-Flash-Farben (inner, outer) - None = kein Flash
+    pub fn muzzle_flash_colors(self) -> Option<(LinearRgba, LinearRgba)> {
+        match self {
+            WeaponType::Pistol => Some((
+                LinearRgba::new(1.0, 0.95, 0.7, 1.0),
+                LinearRgba::new(1.0, 0.6, 0.1, 0.8),
+            )),
+            WeaponType::Uzi => Some((
+                LinearRgba::new(1.0, 0.9, 0.5, 1.0),
+                LinearRgba::new(1.0, 0.5, 0.05, 0.7),
+            )),
+            WeaponType::Shotgun => Some((
+                LinearRgba::new(1.0, 1.0, 0.8, 1.0),
+                LinearRgba::new(1.0, 0.5, 0.1, 0.9),
+            )),
+            WeaponType::Railgun => Some((
+                LinearRgba::new(0.7, 0.95, 1.0, 1.0),
+                LinearRgba::new(0.2, 0.6, 1.0, 0.8),
+            )),
+            WeaponType::Laser => Some((
+                LinearRgba::new(1.0, 0.5, 0.5, 1.0),
+                LinearRgba::new(1.0, 0.1, 0.05, 0.7),
+            )),
+            WeaponType::Rocket => Some((
+                LinearRgba::new(1.0, 0.9, 0.6, 1.0),
+                LinearRgba::new(1.0, 0.4, 0.05, 0.9),
+            )),
+            WeaponType::Flamethrower => Some((
+                LinearRgba::new(1.0, 0.8, 0.3, 1.0),
+                LinearRgba::new(1.0, 0.3, 0.0, 0.8),
+            )),
+            WeaponType::Tesla => Some((
+                LinearRgba::new(0.8, 0.8, 1.0, 1.0),
+                LinearRgba::new(0.3, 0.3, 1.0, 0.7),
+            )),
+            WeaponType::FreezeGun => Some((
+                LinearRgba::new(0.8, 1.0, 1.0, 1.0),
+                LinearRgba::new(0.2, 0.7, 1.0, 0.7),
+            )),
+            WeaponType::Buzzsaw => Some((
+                LinearRgba::new(1.0, 0.9, 0.6, 1.0),
+                LinearRgba::new(0.8, 0.6, 0.2, 0.6),
+            )),
+            // Kein Flash fuer Granate, Mine, Boomerang
+            WeaponType::Grenade | WeaponType::Mine | WeaponType::Boomerang => None,
+        }
+    }
+
+    /// Muzzle-Flash-Groesse (Laenge des Kegels)
+    pub fn muzzle_flash_size(self) -> f32 {
+        match self {
+            WeaponType::Pistol => 8.0,
+            WeaponType::Uzi => 6.0,
+            WeaponType::Shotgun => 14.0,
+            WeaponType::Railgun => 12.0,
+            WeaponType::Laser => 8.0,
+            WeaponType::Rocket => 16.0,
+            WeaponType::Flamethrower => 8.0,
+            WeaponType::Tesla => 10.0,
+            WeaponType::FreezeGun => 8.0,
+            WeaponType::Buzzsaw => 6.0,
+            _ => 8.0,
+        }
+    }
+
     pub fn piercing(self) -> u32 {
         match self {
             WeaponType::Railgun | WeaponType::Laser => 999,

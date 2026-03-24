@@ -4,6 +4,7 @@ use rand::Rng;
 use crate::components::*;
 use crate::constants::*;
 use crate::resources::*;
+use super::explosion_fx::MuzzleFlashMaterial;
 
 pub fn spawn_players(mut commands: Commands, settings: Res<GameSettings>) {
     do_spawn_players(&mut commands, &settings);
@@ -322,6 +323,8 @@ pub fn player_shoot(
     score: Res<Score>,
     mut query: Query<(&mut Player, &Transform)>,
     mut sound_events: ResMut<super::audio::SoundQueue>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut flash_materials: ResMut<Assets<MuzzleFlashMaterial>>,
 ) {
     for (mut player, transform) in query.iter_mut() {
         let lvl = settings.weapon_level(player.weapon, score.points);
@@ -358,6 +361,21 @@ pub fn player_shoot(
             let pos = transform.translation;
             let angle = dir.y.atan2(dir.x);
             let mut rng = rand::rng();
+
+            // Muzzle Flash spawnen (nur fuer Waffen die einen haben)
+            if let Some((color_inner, color_outer)) = weapon.muzzle_flash_colors() {
+                let flash_size = weapon.muzzle_flash_size();
+                super::explosion_fx::spawn_muzzle_flash(
+                    &mut commands,
+                    &mut meshes,
+                    &mut flash_materials,
+                    &player,
+                    pos.truncate(),
+                    color_inner,
+                    color_outer,
+                    flash_size,
+                );
+            }
 
             match weapon {
                 WeaponType::Grenade => {
