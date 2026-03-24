@@ -105,10 +105,10 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 Transform::from_xyz(LEG_SPACING, -14.0, 0.5),
                 PlayerLeg { side: 1.0 },
             ));
-            // Linker Arm (Waffen-Arm = Koerperfarbe/Aermel, anderer = Hautfarbe)
+            // Linker Arm (Waffen-Arm = Hautfarbe/nackt, freier Arm = Aermel)
             parent.spawn((
                 Sprite {
-                    color: if weapon_arm_side < 0.0 { body_color } else { skin_color() },
+                    color: if weapon_arm_side < 0.0 { skin_color() } else { body_color },
                     custom_size: Some(ARM_SIZE),
                     ..default()
                 },
@@ -118,19 +118,21 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
             // Rechter Arm
             parent.spawn((
                 Sprite {
-                    color: if weapon_arm_side > 0.0 { body_color } else { skin_color() },
+                    color: if weapon_arm_side > 0.0 { skin_color() } else { body_color },
                     custom_size: Some(ARM_SIZE),
                     ..default()
                 },
                 Transform::from_xyz(ARM_OFFSET_X, -2.0, 0.5),
                 PlayerArm { side: 1.0, has_weapon: weapon_arm_side > 0.0 },
             ));
-            // Waffen-Sprite (am Waffen-Arm)
+            // Waffen-Sprite Container (am Waffen-Arm)
             parent.spawn((
-                Sprite { color: weapon.sprite_color(), custom_size: Some(weapon.sprite_size()), ..default() },
+                Sprite { color: Color::NONE, custom_size: Some(weapon.sprite_size()), ..default() },
                 Transform::from_xyz(ARM_OFFSET_X * weapon_arm_side + weapon.sprite_size().x / 2.0 * weapon_arm_side, -2.0, 3.0),
                 WeaponSprite,
-            ));
+            )).with_children(|wp| {
+                spawn_weapon_parts(wp, weapon);
+            });
             // HP-Balken
             parent.spawn((
                 Sprite { color: Color::srgb(0.3, 0.0, 0.0), custom_size: Some(Vec2::new(HP_BAR_WIDTH, HP_BAR_HEIGHT)), ..default() },
@@ -143,6 +145,155 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 PlayerHpBar,
             ));
         });
+}
+
+/// Baut Composite-Waffen-Sprites aus mehreren Teilen
+/// Koordinaten relativ zum WeaponSprite-Container, X = vorwaerts (Lauf), Y = seitlich
+fn spawn_weapon_parts(parent: &mut bevy::prelude::ChildSpawnerCommands, weapon: WeaponType) {
+    let metal = Color::srgb(0.55, 0.55, 0.58);
+    let dark_metal = Color::srgb(0.35, 0.35, 0.38);
+    let wood = Color::srgb(0.45, 0.3, 0.15);
+    let dark_wood = Color::srgb(0.35, 0.2, 0.1);
+
+    match weapon {
+        WeaponType::Pistol => {
+            // Lauf
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(8.0, 3.0)), ..default() },
+                Transform::from_xyz(3.0, 0.0, 0.0), WeaponPart));
+            // Griff
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(3.0, 5.0)), ..default() },
+                Transform::from_xyz(-3.0, -1.5, -0.1), WeaponPart));
+        }
+        WeaponType::Uzi => {
+            // Lauf
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(10.0, 3.0)), ..default() },
+                Transform::from_xyz(4.0, 0.0, 0.0), WeaponPart));
+            // Body
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(6.0, 5.0)), ..default() },
+                Transform::from_xyz(-2.0, 0.0, -0.1), WeaponPart));
+            // Magazin
+            parent.spawn((Sprite { color: Color::srgb(0.3, 0.3, 0.3), custom_size: Some(Vec2::new(2.0, 5.0)), ..default() },
+                Transform::from_xyz(-1.0, -3.0, -0.2), WeaponPart));
+        }
+        WeaponType::Shotgun => {
+            // Langer Lauf
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(14.0, 3.0)), ..default() },
+                Transform::from_xyz(2.0, 0.0, 0.0), WeaponPart));
+            // Zweiter Lauf (Doppellauf-Look)
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(12.0, 2.0)), ..default() },
+                Transform::from_xyz(3.0, 2.0, -0.1), WeaponPart));
+            // Holzschaft
+            parent.spawn((Sprite { color: wood, custom_size: Some(Vec2::new(6.0, 4.0)), ..default() },
+                Transform::from_xyz(-7.0, 0.5, -0.1), WeaponPart));
+        }
+        WeaponType::Flamethrower => {
+            // Tank (hinten)
+            parent.spawn((Sprite { color: Color::srgb(0.6, 0.25, 0.1), custom_size: Some(Vec2::new(6.0, 6.0)), ..default() },
+                Transform::from_xyz(-5.0, 0.0, -0.1), WeaponPart));
+            // Rohr
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(10.0, 3.0)), ..default() },
+                Transform::from_xyz(3.0, 0.0, 0.0), WeaponPart));
+            // Duese (vorne, breiter)
+            parent.spawn((Sprite { color: Color::srgb(0.7, 0.3, 0.0), custom_size: Some(Vec2::new(3.0, 5.0)), ..default() },
+                Transform::from_xyz(9.0, 0.0, 0.1), WeaponPart));
+        }
+        WeaponType::Grenade => {
+            // Koerper (rund-eckig)
+            parent.spawn((Sprite { color: Color::srgb(0.3, 0.4, 0.2), custom_size: Some(Vec2::new(6.0, 6.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.0), WeaponPart));
+            // Zuender oben
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(2.0, 3.0)), ..default() },
+                Transform::from_xyz(0.0, 4.0, 0.1), WeaponPart));
+        }
+        WeaponType::Railgun => {
+            // Langer Lauf
+            parent.spawn((Sprite { color: Color::srgb(0.2, 0.5, 0.6), custom_size: Some(Vec2::new(18.0, 2.0)), ..default() },
+                Transform::from_xyz(4.0, 0.0, 0.0), WeaponPart));
+            // Energiekern (leuchtend)
+            parent.spawn((Sprite { color: Color::srgb(0.3, 0.8, 1.0), custom_size: Some(Vec2::new(4.0, 4.0)), ..default() },
+                Transform::from_xyz(-2.0, 0.0, 0.1), WeaponPart));
+            // Griff
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(3.0, 4.0)), ..default() },
+                Transform::from_xyz(-6.0, -1.0, -0.1), WeaponPart));
+        }
+        WeaponType::FreezeGun => {
+            // Lauf
+            parent.spawn((Sprite { color: Color::srgb(0.5, 0.7, 0.8), custom_size: Some(Vec2::new(10.0, 3.0)), ..default() },
+                Transform::from_xyz(4.0, 0.0, 0.0), WeaponPart));
+            // Eiskristall-Muendung
+            parent.spawn((Sprite { color: Color::srgb(0.6, 0.9, 1.0), custom_size: Some(Vec2::new(3.0, 5.0)), ..default() },
+                Transform::from_xyz(10.0, 0.0, 0.1), WeaponPart));
+            // Body
+            parent.spawn((Sprite { color: Color::srgb(0.2, 0.4, 0.5), custom_size: Some(Vec2::new(5.0, 5.0)), ..default() },
+                Transform::from_xyz(-2.0, 0.0, -0.1), WeaponPart));
+        }
+        WeaponType::Tesla => {
+            // Spule (hinten)
+            parent.spawn((Sprite { color: Color::srgb(0.4, 0.4, 0.6), custom_size: Some(Vec2::new(5.0, 6.0)), ..default() },
+                Transform::from_xyz(-3.0, 0.0, -0.1), WeaponPart));
+            // Rohr
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(8.0, 3.0)), ..default() },
+                Transform::from_xyz(3.0, 0.0, 0.0), WeaponPart));
+            // Blitz-Spitze
+            parent.spawn((Sprite { color: Color::srgb(0.5, 0.5, 1.0), custom_size: Some(Vec2::new(3.0, 3.0)), ..default() },
+                Transform::from_xyz(8.0, 0.0, 0.1), WeaponPart));
+        }
+        WeaponType::Laser => {
+            // Langer duenner Lauf
+            parent.spawn((Sprite { color: Color::srgb(0.6, 0.2, 0.2), custom_size: Some(Vec2::new(16.0, 2.0)), ..default() },
+                Transform::from_xyz(4.0, 0.0, 0.0), WeaponPart));
+            // Linse vorne
+            parent.spawn((Sprite { color: Color::srgb(1.0, 0.3, 0.3), custom_size: Some(Vec2::new(2.0, 4.0)), ..default() },
+                Transform::from_xyz(13.0, 0.0, 0.1), WeaponPart));
+            // Energiezelle
+            parent.spawn((Sprite { color: Color::srgb(0.8, 0.1, 0.1), custom_size: Some(Vec2::new(4.0, 4.0)), ..default() },
+                Transform::from_xyz(-4.0, 0.0, -0.1), WeaponPart));
+        }
+        WeaponType::Rocket => {
+            // Rohr
+            parent.spawn((Sprite { color: Color::srgb(0.4, 0.3, 0.2), custom_size: Some(Vec2::new(14.0, 4.0)), ..default() },
+                Transform::from_xyz(2.0, 0.0, 0.0), WeaponPart));
+            // Muendung (breiter)
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(3.0, 6.0)), ..default() },
+                Transform::from_xyz(10.0, 0.0, 0.1), WeaponPart));
+            // Griff/Schulterstuetze
+            parent.spawn((Sprite { color: dark_wood, custom_size: Some(Vec2::new(5.0, 3.0)), ..default() },
+                Transform::from_xyz(-6.0, -2.0, -0.1), WeaponPart));
+        }
+        WeaponType::Mine => {
+            // Koerper (flach)
+            parent.spawn((Sprite { color: Color::srgb(0.4, 0.4, 0.15), custom_size: Some(Vec2::new(7.0, 7.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.0), WeaponPart));
+            // Druckplatte oben
+            parent.spawn((Sprite { color: Color::srgb(0.6, 0.15, 0.1), custom_size: Some(Vec2::new(4.0, 4.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.1), WeaponPart));
+        }
+        WeaponType::Boomerang => {
+            // Fluegel links
+            parent.spawn((Sprite { color: wood, custom_size: Some(Vec2::new(5.0, 3.0)), ..default() },
+                Transform::from_xyz(-2.0, 1.5, 0.0), WeaponPart));
+            // Fluegel rechts
+            parent.spawn((Sprite { color: wood, custom_size: Some(Vec2::new(5.0, 3.0)), ..default() },
+                Transform::from_xyz(2.0, -1.5, 0.0), WeaponPart));
+            // Mitte
+            parent.spawn((Sprite { color: dark_wood, custom_size: Some(Vec2::new(3.0, 3.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.1), WeaponPart));
+        }
+        WeaponType::Buzzsaw => {
+            // Scheibe
+            parent.spawn((Sprite { color: metal, custom_size: Some(Vec2::new(9.0, 9.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.0), WeaponPart));
+            // Inneres (dunkler)
+            parent.spawn((Sprite { color: dark_metal, custom_size: Some(Vec2::new(4.0, 4.0)), ..default() },
+                Transform::from_xyz(0.0, 0.0, 0.1), WeaponPart));
+            // Zaehne (markiert durch helle Punkte an den Seiten)
+            for i in 0..4 {
+                let a = i as f32 * std::f32::consts::FRAC_PI_2;
+                parent.spawn((Sprite { color: Color::srgb(0.8, 0.8, 0.8), custom_size: Some(Vec2::new(2.0, 2.0)), ..default() },
+                    Transform::from_xyz(a.cos() * 4.5, a.sin() * 4.5, 0.2), WeaponPart));
+            }
+        }
+    }
 }
 
 /// Auto-join P2 when arrow keys are pressed and P2 doesn't exist yet
@@ -262,14 +413,33 @@ pub fn player_walk_animation(
                 }
             }
 
-            // Arme: Position und Rotation anpassen je nach Blickrichtung
+            // Arme
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
-                let base_x = ARM_OFFSET_X * arm.side;
-                let base_y = -2.0;
-                transform.translation.x = base_x + facing.x * 2.0;
-                transform.translation.y = base_y + facing.y * 1.5;
-                let angle = facing.y.atan2(facing.x);
-                transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2);
+                if arm.has_weapon {
+                    // Waffen-Arm: zeigt in Facing-Richtung
+                    let base_x = ARM_OFFSET_X * arm.side;
+                    let base_y = -2.0;
+                    transform.translation.x = base_x + facing.x * 2.0;
+                    transform.translation.y = base_y + facing.y * 1.5;
+                    let angle = facing.y.atan2(facing.x);
+                    transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2);
+                } else {
+                    // Freier Arm: haengt locker runter, wackelt dynamisch
+                    let base_x = ARM_OFFSET_X * arm.side;
+                    let base_y = -2.0;
+                    if is_moving {
+                        let swing = (t * 8.0 + arm.side * std::f32::consts::PI).sin();
+                        transform.translation.x = base_x + swing * 1.5;
+                        transform.translation.y = base_y - 3.0 + swing.abs() * 1.0;
+                        transform.rotation = Quat::from_rotation_z(swing * 0.15);
+                    } else {
+                        // Idle: leichtes Pendeln
+                        let sway = (t * 1.2 + arm.side).sin();
+                        transform.translation.x = base_x + sway * 0.5;
+                        transform.translation.y = base_y - 3.0;
+                        transform.rotation = Quat::from_rotation_z(sway * 0.05);
+                    }
+                }
             }
 
             // Waffe: auf den Waffen-Arm platzieren
@@ -320,13 +490,16 @@ pub fn player_walk_animation(
 }
 
 pub fn player_weapon_switch(
+    mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
     score: Res<Score>,
     settings: Res<GameSettings>,
-    mut query: Query<&mut Player>,
+    mut query: Query<(&mut Player, &Children)>,
+    weapon_sprite_query: Query<(Entity, Option<&Children>), With<WeaponSprite>>,
+    part_query: Query<Entity, With<WeaponPart>>,
     mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
-    for mut player in query.iter_mut() {
+    for (mut player, player_children) in query.iter_mut() {
         let switch = match player.id {
             PlayerId::P1 => keyboard.just_pressed(KeyCode::KeyQ),
             PlayerId::P2 => keyboard.just_pressed(KeyCode::ShiftRight),
@@ -353,8 +526,36 @@ pub fn player_weapon_switch(
             player.shoot_cooldown.tick(std::time::Duration::from_secs(10));
             player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
             sound_events.0.push(super::audio::SoundEvent::WeaponSwitch);
+
+            // Waffen-Parts neu aufbauen
+            for pc in player_children.iter() {
+                if let Ok((ws_entity, ws_children)) = weapon_sprite_query.get(pc) {
+                    // Alte Parts despawnen
+                    if let Some(children) = ws_children {
+                        for wc in children.iter() {
+                            if part_query.get(wc).is_ok() {
+                                commands.entity(wc).despawn();
+                            }
+                        }
+                    }
+                    // Neue Parts spawnen
+                    commands.entity(ws_entity).with_children(|wp| {
+                        spawn_weapon_parts(wp, new_weapon);
+                    });
+                }
+            }
         }
     }
+}
+
+/// Berechnet die Waffenspitze (Muendung) in Weltkoordinaten
+pub fn weapon_tip(player: &Player, player_pos: Vec2, weapon_arm_pos: Vec2) -> Vec2 {
+    let facing = player.facing;
+    let ws_size = player.weapon.sprite_size();
+    // Waffe sitzt am Arm-Ende + halbe Waffenlaenge + offset in Facing-Richtung
+    let tip_x = weapon_arm_pos.x + facing.x * (ws_size.x / 2.0 + 2.0 + ws_size.x / 2.0);
+    let tip_y = weapon_arm_pos.y + facing.y * (ws_size.y / 2.0 + 2.0 + ws_size.y / 2.0);
+    player_pos + Vec2::new(tip_x, tip_y)
 }
 
 pub fn player_shoot(
@@ -363,12 +564,13 @@ pub fn player_shoot(
     time: Res<Time>,
     settings: Res<GameSettings>,
     score: Res<Score>,
-    mut query: Query<(&mut Player, &Transform)>,
+    mut query: Query<(&mut Player, &Transform, &Children)>,
+    arm_query: Query<(&PlayerArm, &Transform), Without<Player>>,
     mut sound_events: ResMut<super::audio::SoundQueue>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut flash_materials: ResMut<Assets<MuzzleFlashMaterial>>,
 ) {
-    for (mut player, transform) in query.iter_mut() {
+    for (mut player, transform, children) in query.iter_mut() {
         let lvl = settings.weapon_level(player.weapon, score.points);
         let ws = settings.weapon_at_level(player.weapon, lvl);
         let ws = &ws;
@@ -400,19 +602,32 @@ pub fn player_shoot(
 
             let weapon = player.weapon;
             let dir = player.facing;
-            let pos = transform.translation;
-            let angle = dir.y.atan2(dir.x);
+            let player_pos = transform.translation.truncate();
             let mut rng = rand::rng();
+
+            // Waffen-Arm-Position finden
+            let mut weapon_arm_pos = Vec2::new(ARM_OFFSET_X, -2.0);
+            for child in children.iter() {
+                if let Ok((arm, arm_t)) = arm_query.get(child) {
+                    if arm.has_weapon {
+                        weapon_arm_pos = Vec2::new(arm_t.translation.x, arm_t.translation.y);
+                    }
+                }
+            }
+
+            let tip = weapon_tip(&player, player_pos, weapon_arm_pos);
+            let pos = tip.extend(transform.translation.z);
+            let angle = dir.y.atan2(dir.x);
 
             // Muzzle Flash spawnen (nur fuer Waffen die einen haben)
             if let Some((color_inner, color_outer)) = weapon.muzzle_flash_colors() {
                 let flash_size = weapon.muzzle_flash_size();
-                super::explosion_fx::spawn_muzzle_flash(
+                super::explosion_fx::spawn_muzzle_flash_at(
                     &mut commands,
                     &mut meshes,
                     &mut flash_materials,
                     &player,
-                    pos.truncate(),
+                    tip,
                     color_inner,
                     color_outer,
                     flash_size,
@@ -628,8 +843,8 @@ pub fn update_player_hp_bars(
 
 pub fn update_weapon_sprites(
     player_query: Query<(&Player, &Children)>,
-    arm_query: Query<(&PlayerArm, &Transform), Without<WeaponSprite>>,
-    mut weapon_query: Query<(&mut Sprite, &mut Transform), (With<WeaponSprite>, Without<Player>, Without<PlayerArm>)>,
+    arm_query: Query<(&PlayerArm, &Transform), (Without<WeaponSprite>, Without<Player>)>,
+    mut weapon_query: Query<&mut Transform, (With<WeaponSprite>, Without<Player>, Without<PlayerArm>)>,
 ) {
     for (player, children) in player_query.iter() {
         let facing = player.facing;
@@ -645,10 +860,8 @@ pub fn update_weapon_sprites(
         }
 
         for child in children.iter() {
-            if let Ok((mut sprite, mut transform)) = weapon_query.get_mut(child) {
+            if let Ok(mut transform) = weapon_query.get_mut(child) {
                 let size = player.weapon.sprite_size();
-                sprite.custom_size = Some(size);
-                sprite.color = player.weapon.sprite_color();
 
                 // Waffe am Waffen-Arm platzieren
                 let angle = facing.y.atan2(facing.x);

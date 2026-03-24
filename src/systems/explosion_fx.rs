@@ -57,14 +57,26 @@ pub fn spawn_muzzle_flash(
     color_outer: LinearRgba,
     size: f32,
 ) {
+    let tip = weapon_tip_pos(player, player_pos);
+    spawn_muzzle_flash_at(commands, meshes, materials, player, tip, color_inner, color_outer, size);
+}
+
+pub fn spawn_muzzle_flash_at(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<MuzzleFlashMaterial>,
+    player: &Player,
+    tip_pos: Vec2,
+    color_inner: LinearRgba,
+    color_outer: LinearRgba,
+    size: f32,
+) {
     let facing = player.facing;
     let angle = facing.y.atan2(facing.x);
     let lifetime = 0.1;
 
-    // Sofort korrekte Position berechnen (kein 1-Frame Delay)
-    let tip = weapon_tip_pos(player, player_pos);
     let offset = facing * size * 0.3;
-    let pos = tip + offset;
+    let pos = tip_pos + offset;
 
     let material = materials.add(MuzzleFlashMaterial {
         params: MuzzleFlashParams {
@@ -113,21 +125,29 @@ pub fn update_muzzle_flashes(
         &mut Transform,
         &MeshMaterial2d<MuzzleFlashMaterial>,
     )>,
-    player_query: Query<(&Player, &Transform), Without<MuzzleFlash>>,
+    player_query: Query<(&Player, &Transform, &Children), Without<MuzzleFlash>>,
+    arm_query: Query<(&PlayerArm, &Transform), (Without<Player>, Without<MuzzleFlash>)>,
 ) {
     for (entity, mut flash, mut transform, material_handle) in query.iter_mut() {
         flash.lifetime.tick(time.delta());
         let progress = flash.lifetime.fraction();
 
         // Flash an Waffentip verankern
-        for (player, pt) in player_query.iter() {
+        for (player, pt, children) in player_query.iter() {
             if player.id == flash.owner_id {
-                let tip = weapon_tip_pos(player, pt.translation.truncate());
+                let mut weapon_arm_pos = Vec2::new(9.5, -2.0);
+                for child in children.iter() {
+                    if let Ok((arm, arm_t)) = arm_query.get(child) {
+                        if arm.has_weapon {
+                            weapon_arm_pos = Vec2::new(arm_t.translation.x, arm_t.translation.y);
+                        }
+                    }
+                }
+                let tip = super::player::weapon_tip(player, pt.translation.truncate(), weapon_arm_pos);
                 let facing = player.facing;
                 let offset = facing * flash.flash_size * 0.3;
                 transform.translation.x = tip.x + offset.x;
                 transform.translation.y = tip.y + offset.y;
-                // Rotation updaten falls Spieler sich dreht
                 let angle = facing.y.atan2(facing.x);
                 transform.rotation = Quat::from_rotation_z(angle);
                 break;

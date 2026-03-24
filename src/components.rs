@@ -105,19 +105,19 @@ impl WeaponType {
 
     pub fn bullet_size(self) -> Vec2 {
         match self {
-            WeaponType::Pistol => Vec2::new(8.0, 4.0),
-            WeaponType::Uzi => Vec2::new(6.0, 3.0),
-            WeaponType::Grenade => Vec2::new(10.0, 10.0),
-            WeaponType::Railgun => Vec2::new(20.0, 3.0),
-            WeaponType::Flamethrower => Vec2::new(6.0, 6.0),
-            WeaponType::Shotgun => Vec2::new(5.0, 3.0),
-            WeaponType::Laser => Vec2::new(30.0, 2.0),
-            WeaponType::Mine => Vec2::new(12.0, 12.0),
-            WeaponType::Boomerang => Vec2::new(12.0, 12.0),
-            WeaponType::Tesla => Vec2::new(8.0, 8.0),
-            WeaponType::Buzzsaw => Vec2::new(16.0, 16.0),
-            WeaponType::Rocket => Vec2::new(12.0, 6.0),
-            WeaponType::FreezeGun => Vec2::new(8.0, 8.0),
+            WeaponType::Pistol => Vec2::new(5.0, 1.5),
+            WeaponType::Uzi => Vec2::new(4.0, 1.5),
+            WeaponType::Grenade => Vec2::new(6.0, 6.0),
+            WeaponType::Railgun => Vec2::new(16.0, 1.5),
+            WeaponType::Flamethrower => Vec2::new(4.0, 4.0),
+            WeaponType::Shotgun => Vec2::new(3.0, 1.5),
+            WeaponType::Laser => Vec2::new(24.0, 1.5),
+            WeaponType::Mine => Vec2::new(10.0, 10.0),
+            WeaponType::Boomerang => Vec2::new(10.0, 10.0),
+            WeaponType::Tesla => Vec2::new(6.0, 2.0),
+            WeaponType::Buzzsaw => Vec2::new(14.0, 14.0),
+            WeaponType::Rocket => Vec2::new(8.0, 3.0),
+            WeaponType::FreezeGun => Vec2::new(5.0, 2.0),
         }
     }
 
@@ -277,6 +277,9 @@ pub struct RegenCooldown {
 
 #[derive(Component)]
 pub struct WeaponSprite;
+
+#[derive(Component)]
+pub struct WeaponPart;
 
 #[derive(Component)]
 pub struct PlayerHead;
