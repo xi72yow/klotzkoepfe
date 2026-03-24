@@ -50,7 +50,7 @@ pub fn mine_system(
                 1,
             );
             sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Mine));
-            commands.entity(mine_entity).despawn();
+            commands.entity(mine_entity).try_despawn();
         }
     }
 }
@@ -106,7 +106,7 @@ pub fn boomerang_system(
                             break;
                         }
                     }
-                    commands.entity(entity).despawn();
+                    commands.entity(entity).try_despawn();
                     continue;
                 }
 
@@ -114,7 +114,7 @@ pub fn boomerang_system(
                 transform.translation.x += dir.x * speed * 1.5 * dt;
                 transform.translation.y += dir.y * speed * 1.5 * dt;
             } else {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
                 continue;
             }
         }
@@ -231,7 +231,7 @@ pub fn weapon_unlock_fade(
         let alpha = 1.0 - unlock.lifetime.fraction();
         *color = TextColor(Color::srgba(1.0, 1.0, 0.3, alpha));
         if unlock.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 
@@ -250,7 +250,7 @@ pub fn weapon_unlock_fade(
         sprite.color = Color::srgba(c.red, c.green, c.blue, alpha);
 
         if icon.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

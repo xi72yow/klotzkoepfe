@@ -189,7 +189,7 @@ pub fn base_crate_respawn(
         spawner.respawn_timer.tick(time.delta());
         if spawner.respawn_timer.is_finished() {
             spawn_loot_crate(&mut commands, spawner.position, CrateType::Base, settings.crate_despawn_time);
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

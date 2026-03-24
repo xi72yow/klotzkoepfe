@@ -27,7 +27,7 @@ pub fn bullet_movement(
             || transform.translation.x.abs() > half_w
             || transform.translation.y.abs() > half_h
         {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -104,7 +104,7 @@ pub fn grenade_movement(
             spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, grenade.damage, level);
             spawn_shrapnel(&mut commands, pos.truncate(), grenade.damage, level);
             sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Grenade));
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -158,7 +158,7 @@ pub fn rocket_movement(
             let level = rocket.level;
             spawn_explosion(&mut commands, &mut meshes, &mut explosion_materials, pos, radius, rocket.damage, level);
             sound_events.0.push(super::audio::SoundEvent::Explosion(super::audio::ExplosionType::Rocket));
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

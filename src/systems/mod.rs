@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod blood;
+pub mod cone_beam;
 pub mod explosion_fx;
 pub mod ground_decals;
 pub mod pixelation;

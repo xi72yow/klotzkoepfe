@@ -110,7 +110,7 @@ pub fn unlock_screen_input(
         ui_state.tab = (ui_state.tab + 1) % 2;
         // Re-render: despawn old, then rebuild
         for entity in query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
         // Render inline since we can't pass ResMut as Res
         render_unlock_screen(&mut commands, &score, &settings, &ui_state);
@@ -158,6 +158,6 @@ pub fn cleanup_unlock_screen(
     query: Query<Entity, With<UnlockUi>>,
 ) {
     for entity in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }

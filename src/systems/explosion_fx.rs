@@ -159,7 +159,7 @@ pub fn update_muzzle_flashes(
         }
 
         if flash.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -280,7 +280,7 @@ pub fn update_shader_explosions(
         }
 
         if explosion.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

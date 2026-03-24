@@ -180,7 +180,7 @@ pub fn update_hud(
 
     // Alte Ammo-Indikatoren entfernen
     for entity in ammo_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 
     // Munitions-Anzeige dynamisch pro Spieler aufbauen

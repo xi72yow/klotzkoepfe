@@ -92,7 +92,7 @@ pub fn try_dismember(
     }
 
     // Teil vom Zombie entfernen
-    commands.entity(part_entity).despawn();
+    commands.entity(part_entity).try_despawn();
 
     // Als freies Gib spawnen das wegfliegt
     let gib_pos = zombie_pos + offset;
@@ -236,7 +236,7 @@ pub fn gib_update(
             sprite.custom_size = Some(shrunk);
 
             if gib.decay_timer.is_finished() {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
     }
@@ -262,7 +262,7 @@ pub fn blood_update(
                     color: sprite.color,
                     radius: 3.0,
                 });
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
     }

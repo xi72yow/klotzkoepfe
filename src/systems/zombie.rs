@@ -163,7 +163,7 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
 pub fn zombie_ai(
     time: Res<Time>,
     player_query: Query<&Transform, With<Player>>,
-    mut zombie_query: Query<(&Zombie, &mut Transform), Without<Player>>,
+    mut zombie_query: Query<(&Zombie, &mut Transform), (Without<Player>, Without<Knockback>)>,
 ) {
     let player_positions: Vec<Vec2> = player_query
         .iter()
@@ -396,11 +396,13 @@ pub fn burning_system(
 
     // Apply fire jumping (deferred)
     for (e, dmg) in new_burns {
-        commands.entity(e).try_insert(Burning {
-            damage_per_second: dmg,
-            timer: Timer::from_seconds(2.0, TimerMode::Once),
-            tick_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
-        });
+        if let Ok(mut ec) = commands.get_entity(e) {
+            ec.try_insert(Burning {
+                damage_per_second: dmg,
+                timer: Timer::from_seconds(2.0, TimerMode::Once),
+                tick_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+            });
+        }
     }
 }
 
@@ -451,7 +453,7 @@ pub fn lightning_arc_system(
         let alpha = 1.0 - arc.lifetime.fraction();
         sprite.color = Color::srgba(0.6, 0.7, 1.0, alpha);
         if arc.lifetime.is_finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

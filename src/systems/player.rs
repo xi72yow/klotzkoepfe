@@ -534,7 +534,7 @@ pub fn player_weapon_switch(
                     if let Some(children) = ws_children {
                         for wc in children.iter() {
                             if part_query.get(wc).is_ok() {
-                                commands.entity(wc).despawn();
+                                commands.entity(wc).try_despawn();
                             }
                         }
                     }
@@ -665,22 +665,7 @@ pub fn player_shoot(
                     ));
                 }
                 WeaponType::Flamethrower => {
-                    let sa = ws.spread_angle.max(0.01);
-                    let spread = rng.random_range(-sa..sa);
-                    let fa = angle + spread;
-                    let fd = Vec2::new(fa.cos(), fa.sin());
-                    commands.spawn((
-                        Sprite {
-                            color: Color::srgb(1.0, rng.random_range(0.2..0.6), 0.0),
-                            custom_size: Some(Vec2::splat(rng.random_range(4.0..8.0))),
-                            ..default()
-                        },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(fa)),
-                        Bullet { damage: ws.damage, range_remaining: ws.range * rng.random_range(0.6..1.0), pierce_remaining: 1 },
-                        FlameBullet,
-                        Velocity(fd * ws.bullet_speed * rng.random_range(0.7..1.3)),
-                        BulletOwner(player.id),
-                    ));
+                    // AoE Cone-Beam handled by cone_beam system - no projectiles
                 }
                 WeaponType::Shotgun => {
                     let count = ws.pellet_count.max(1);
@@ -750,17 +735,7 @@ pub fn player_shoot(
                     ));
                 }
                 WeaponType::FreezeGun => {
-                    commands.spawn((
-                        Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
-                        Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: 1 },
-                        FreezeBullet {
-                            slow_factor: if ws.slow_factor > 0.0 { ws.slow_factor } else { 0.25 },
-                            slow_duration: if ws.slow_duration > 0.0 { ws.slow_duration } else { 3.0 },
-                        },
-                        Velocity(dir * ws.bullet_speed),
-                        BulletOwner(player.id),
-                    ));
+                    // AoE Cone-Beam handled by cone_beam system - no projectiles
                 }
                 // Laser, Railgun, Pistol, Uzi - standard bullets
                 _ => {

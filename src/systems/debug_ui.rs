@@ -415,7 +415,7 @@ pub fn settings_render(
     panel_query: Query<Entity, With<SettingsPanel>>,
 ) {
     for entity in panel_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 
     let items = all_items();
@@ -516,6 +516,6 @@ pub fn cleanup_settings_panel(
     panel_query: Query<Entity, With<SettingsPanel>>,
 ) {
     for entity in panel_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }

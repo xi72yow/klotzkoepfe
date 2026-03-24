@@ -24,9 +24,11 @@ fn main() {
     embedded_asset!(app, "shaders/explosion.wgsl");
     embedded_asset!(app, "shaders/pixelation.wgsl");
     embedded_asset!(app, "shaders/muzzle_flash.wgsl");
+    embedded_asset!(app, "shaders/cone_beam.wgsl");
     app.insert_resource(ClearColor(FLOOR_COLOR))
         .add_plugins(bevy::sprite_render::Material2dPlugin::<explosion_fx::ExplosionMaterial>::default())
         .add_plugins(bevy::sprite_render::Material2dPlugin::<explosion_fx::MuzzleFlashMaterial>::default())
+        .add_plugins(bevy::sprite_render::Material2dPlugin::<cone_beam::ConeBeamMaterial>::default())
         .add_plugins(bevy::core_pipeline::fullscreen_material::FullscreenMaterialPlugin::<pixelation::PixelationMaterial>::default())
         .init_state::<GameState>()
         .init_resource::<WaveState>()
@@ -139,6 +141,10 @@ fn main() {
                 explosion_fx::update_shader_explosions,
                 explosion_fx::update_muzzle_flashes,
                 ground_decals::process_decal_stamps,
+                cone_beam::cone_beam_spawn,
+                cone_beam::cone_beam_despawn,
+                cone_beam::cone_beam_update,
+                cone_beam::cone_beam_damage,
             )
                 .run_if(in_state(GameState::Playing)),
         )

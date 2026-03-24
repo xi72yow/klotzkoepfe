@@ -137,41 +137,43 @@ pub fn bullet_zombie_collision(
                     }
                 }
 
-                // Freeze-Effekt
-                if let Some(fb) = freeze {
-                    zombie.speed_modifier = fb.slow_factor;
-                    zombie.freeze_timer = Timer::from_seconds(fb.slow_duration, TimerMode::Once);
-                    // Add freeze stacks for full-freeze mechanic
-                    commands.entity(zombie_entity).try_insert(FreezeStacks {
-                        hits: 0, // Will be incremented below
-                        frozen: false,
-                        frozen_timer: Timer::from_seconds(fb.slow_duration * 2.0, TimerMode::Once),
-                    });
-                }
+                // Alle Effekte nur auf noch existierende Entities anwenden
+                if let Ok(mut ec) = commands.get_entity(zombie_entity) {
+                    // Freeze-Effekt
+                    if let Some(fb) = freeze {
+                        zombie.speed_modifier = fb.slow_factor;
+                        zombie.freeze_timer = Timer::from_seconds(fb.slow_duration, TimerMode::Once);
+                        ec.try_insert(FreezeStacks {
+                            hits: 0,
+                            frozen: false,
+                            frozen_timer: Timer::from_seconds(fb.slow_duration * 2.0, TimerMode::Once),
+                        });
+                    }
 
-                // Flame-Effekt: set zombie on fire
-                if flame.is_some() {
-                    commands.entity(zombie_entity).try_insert(Burning {
-                        damage_per_second: bullet.damage * 0.5,
-                        timer: Timer::from_seconds(3.0, TimerMode::Once),
-                        tick_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
-                    });
-                }
+                    // Flame-Effekt: set zombie on fire
+                    if flame.is_some() {
+                        ec.try_insert(Burning {
+                            damage_per_second: bullet.damage * 0.5,
+                            timer: Timer::from_seconds(3.0, TimerMode::Once),
+                            tick_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+                        });
+                    }
 
-                // Tesla stun on chain targets
-                if tesla.is_some() {
-                    commands.entity(zombie_entity).try_insert(Stunned {
-                        timer: Timer::from_seconds(0.5, TimerMode::Once),
-                    });
-                }
+                    // Tesla stun
+                    if tesla.is_some() {
+                        ec.try_insert(Stunned {
+                            timer: Timer::from_seconds(0.5, TimerMode::Once),
+                        });
+                    }
 
-                // Knockback on zombie
-                if settings.knockback_strength_zombie > 0.0 && health.current > 0.0 {
-                    let kb_dir = (zombie_pos - bullet_pos).normalize_or_zero();
-                    commands.entity(zombie_entity).insert(Knockback {
-                        velocity: kb_dir * settings.knockback_strength_zombie,
-                        duration: Timer::from_seconds(settings.knockback_duration, TimerMode::Once),
-                    });
+                    // Knockback on zombie
+                    if settings.knockback_strength_zombie > 0.0 && health.current > 0.0 {
+                        let kb_dir = (zombie_pos - bullet_pos).normalize_or_zero();
+                        ec.insert(Knockback {
+                            velocity: kb_dir * settings.knockback_strength_zombie,
+                            duration: Timer::from_seconds(settings.knockback_duration, TimerMode::Once),
+                        });
+                    }
                 }
 
                 if health.current <= 0.0 {
@@ -192,9 +194,11 @@ pub fn bullet_zombie_collision(
                                     spawn_lightning_arc(&mut commands, last_pos, *next_pos);
 
                                     // Stun chained zombies
-                                    commands.entity(*next_e).try_insert(Stunned {
-                                        timer: Timer::from_seconds(0.5, TimerMode::Once),
-                                    });
+                                    if let Ok(mut chain_ec) = commands.get_entity(*next_e) {
+                                        chain_ec.try_insert(Stunned {
+                                            timer: Timer::from_seconds(0.5, TimerMode::Once),
+                                        });
+                                    }
 
                                     used.push(*next_e);
                                     last_pos = *next_pos;
@@ -239,7 +243,7 @@ pub fn bullet_zombie_collision(
 
                 bullet.pierce_remaining = bullet.pierce_remaining.saturating_sub(1);
                 if bullet.pierce_remaining == 0 {
-                    commands.entity(bullet_entity).despawn();
+                    commands.entity(bullet_entity).try_despawn();
                     break;
                 }
             }
