@@ -246,13 +246,16 @@ pub fn player_walk_animation(
                 }
             }
 
-            // Arme: Position anpassen je nach Blickrichtung
+            // Arme: Position und Rotation anpassen je nach Blickrichtung
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
                 let base_x = ARM_OFFSET_X * arm.side;
                 let base_y = -2.0;
                 // Arme leicht in Blickrichtung verschieben
                 transform.translation.x = base_x + facing.x * 2.0;
                 transform.translation.y = base_y + facing.y * 1.5;
+                // Arm rotieren: kurze Seite zeigt in Facing-Richtung
+                let angle = facing.y.atan2(facing.x);
+                transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2);
             }
 
             // Waffe: in Blickrichtung positionieren

@@ -239,9 +239,9 @@ pub fn zombie_animation(
                 let arm_reach = 6.0;
                 transform.translation.x = base_x + facing.x * arm_reach;
                 transform.translation.y = base_y + facing.y * arm_reach;
-                // Arm rotieren zum Spieler
+                // Arm rotieren: kurze Seite zeigt in Facing-Richtung
                 let angle = facing.y.atan2(facing.x);
-                transform.rotation = Quat::from_rotation_z(angle + wobble);
+                transform.rotation = Quat::from_rotation_z(angle - std::f32::consts::FRAC_PI_2 + wobble);
             }
         }
     }
