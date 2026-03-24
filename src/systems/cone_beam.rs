@@ -165,6 +165,8 @@ pub fn cone_beam_despawn(
 pub fn cone_beam_update(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    settings: Res<GameSettings>,
+    score: Res<Score>,
     mut materials: ResMut<Assets<ConeBeamMaterial>>,
     mut beam_query: Query<(
         &mut ConeBeam,
@@ -202,17 +204,25 @@ pub fn cone_beam_update(
         let facing = player.facing;
         let angle = facing.y.atan2(facing.x);
 
-        // Beam-Mesh an Waffentip positionieren
-        // Shader hat UV-Padding: sichtbarer Effekt startet erst bei UV.x ~0.12/0.10
-        // Mesh muss zurueckversetzt werden damit Effekt am Laufende startet
-        let (length, _width, uv_padding) = match beam.beam_type {
-            ConeBeamType::Flame => (170.0, 120.0, 0.12),
-            ConeBeamType::Freeze => (200.0, 170.0, 0.10),
+        // Range-basierte Skalierung: Mesh an tatsaechliche Waffen-Range anpassen
+        let lvl = settings.weapon_level(player.weapon, score.points);
+        let ws = settings.weapon_at_level(player.weapon, lvl);
+        let (base_mesh_length, uv_padding, base_effect_range) = match beam.beam_type {
+            ConeBeamType::Flame => (170.0_f32, 0.12_f32, 130.0_f32),
+            ConeBeamType::Freeze => (200.0_f32, 0.10_f32, 150.0_f32),
         };
-        let center = tip + facing * (length * 0.5 - length * uv_padding);
+        let actual_range = match beam.beam_type {
+            ConeBeamType::Flame => ws.range.max(100.0),
+            ConeBeamType::Freeze => ws.range.max(120.0),
+        };
+        let range_scale = actual_range / base_effect_range;
+
+        // Beam-Mesh an Waffentip positionieren (skaliert)
+        let center = tip + facing * range_scale * (base_mesh_length * 0.5 - base_mesh_length * uv_padding);
         transform.translation.x = center.x;
         transform.translation.y = center.y;
         transform.rotation = Quat::from_rotation_z(angle);
+        transform.scale = Vec3::new(range_scale, range_scale, 1.0);
 
         // Smooth intensity ramp: ~0.15s anlauf, ~0.25s ablauf
         let dt = time.delta_secs();

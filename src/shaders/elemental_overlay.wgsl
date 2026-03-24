@@ -26,8 +26,9 @@ fn fire_effect(uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let time_slot = floor(t * 3.5);
     let cell_lottery = hash(puv * 23.0 + vec2(time_slot * 1.7, time_slot * 0.3));
 
-    // ~20 max bei intensity=1, ~2 bei intensity=0.1
-    let threshold = 1.0 - intensity * 0.17;
+    // ~8 max bei intensity=1, ~1 bei intensity=0.1
+    // 14x14=196 Zellen, ~120 im Body, 8/120=0.067
+    let threshold = 1.0 - intensity * 0.067;
     let is_flame = select(0.0, 1.0, cell_lottery > threshold);
 
     let dist = length(uv - vec2(0.5));

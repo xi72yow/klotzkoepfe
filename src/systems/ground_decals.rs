@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use rand::Rng;
 
 use crate::components::GroundDecalLayer;
 use crate::constants::*;
@@ -14,6 +15,10 @@ pub enum DecalStamp {
         radius: f32,
     },
     Burn {
+        position: Vec2,
+        radius: f32,
+    },
+    Ash {
         position: Vec2,
         radius: f32,
     },
@@ -145,6 +150,29 @@ pub fn process_decal_stamps(
                     Color::srgb(0.15, 0.1, 0.05),
                     0.5,
                 );
+            }
+            DecalStamp::Ash { position, radius } => {
+                let (cx, cy) = decal_map.world_to_pixel(position);
+                let pixel_radius = radius * (width as f32 / WINDOW_WIDTH);
+                let mut rng = rand::rng();
+                // Mehrere kleine zufaellige Kleckse statt perfektem Kreis
+                let blob_count = rng.random_range(4..7);
+                for _ in 0..blob_count {
+                    let ox = rng.random_range(-pixel_radius * 0.5..pixel_radius * 0.5) as i32;
+                    let oy = rng.random_range(-pixel_radius * 0.5..pixel_radius * 0.5) as i32;
+                    let blob_r = pixel_radius * rng.random_range(0.2..0.45);
+                    let shade = rng.random_range(0.12..0.22);
+                    stamp_circle(
+                        data,
+                        width,
+                        height,
+                        cx + ox,
+                        cy + oy,
+                        blob_r,
+                        Color::srgb(shade, shade * 0.9, shade * 0.8),
+                        rng.random_range(0.4..0.65),
+                    );
+                }
             }
         }
     }

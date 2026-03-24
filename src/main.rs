@@ -134,6 +134,9 @@ fn main() {
                 zombie::freeze_stack_system,
                 zombie::zombie_elemental_visuals,
                 zombie::zombie_freeze_thaw,
+                zombie::zombie_ash_death,
+                zombie::zombie_ash_crumble,
+                zombie::ash_particle_update,
                 zombie::lightning_arc_system,
                 zombie::zombie_groan,
             )

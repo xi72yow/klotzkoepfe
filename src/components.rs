@@ -334,6 +334,18 @@ pub struct Gib {
 }
 
 #[derive(Component)]
+pub struct AshCrumble {
+    pub timer: Timer,
+    pub particle_timer: Timer,
+    pub killed: bool, // Kill schon registriert?
+}
+
+#[derive(Component)]
+pub struct AshParticle {
+    pub lifetime: Timer,
+}
+
+#[derive(Component)]
 pub struct BigZombie;
 
 #[derive(Component)]

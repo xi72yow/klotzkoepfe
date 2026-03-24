@@ -371,7 +371,7 @@ pub fn burning_system(
     mut score: ResMut<Score>,
     mut wave: ResMut<WaveState>,
     mut combo: ResMut<ComboMeter>,
-    mut query: Query<(Entity, &Transform, &mut Health, &mut Burning)>,
+    mut query: Query<(Entity, &Transform, &mut Health, &mut Burning, &mut Zombie)>,
     zombie_positions: Query<(Entity, &Transform), With<Zombie>>,
 ) {
     // Fire jumping
@@ -381,12 +381,14 @@ pub fn burning_system(
 
     let mut new_burns: Vec<(Entity, f32)> = Vec::new();
 
-    for (entity, transform, mut health, mut burning) in query.iter_mut() {
+    for (entity, transform, mut health, mut burning, mut zombie) in query.iter_mut() {
         burning.timer.tick(time.delta());
         burning.tick_timer.tick(time.delta());
 
         if burning.tick_timer.just_finished() {
-            health.current -= burning.damage_per_second * 0.25;
+            let tick_dmg = burning.damage_per_second * 0.25;
+            health.current -= tick_dmg;
+            zombie.fire_visual += tick_dmg * 3.0;
             crate::systems::blood::spawn_blood(&mut commands, transform.translation.truncate());
 
             // Fire jump to nearby zombies
@@ -509,10 +511,17 @@ pub fn zombie_elemental_visuals(
         if freeze_factor > 0.8 {
             zombie.speed_modifier = 0.0;
         } else if freeze_factor > 0.3 {
-            // Teilweise verlangsamt
             let slow = 1.0 - (freeze_factor - 0.3) / 0.5 * 0.85; // 100% -> 15%
             if zombie.speed_modifier > slow {
                 zombie.speed_modifier = slow;
+            }
+        }
+
+        // Verkohlt: Zombie wird langsamer (ab 30% bis 80% runter auf 20%)
+        if burn_factor > 0.3 {
+            let fire_slow = 1.0 - (burn_factor - 0.3).min(0.5) / 0.5 * 0.8; // 100% -> 20%
+            if zombie.speed_modifier > fire_slow {
+                zombie.speed_modifier = fire_slow;
             }
         }
 
@@ -523,9 +532,9 @@ pub fn zombie_elemental_visuals(
         let mut scale_y = 1.0f32;
 
         if burn_factor > 0.0 {
-            // Schrumpft bis 75%, dann Stopp
+            // Schrumpft bis 85%, dann Stopp
             let shrink_t = (burn_factor / 0.69).min(1.0);
-            scale_x *= 1.0 - shrink_t * 0.25;
+            scale_x *= 1.0 - shrink_t * 0.15;
         }
 
         if freeze_factor > 0.0 {
@@ -575,6 +584,151 @@ pub fn zombie_elemental_visuals(
                 transform.scale.x = scale_x;
                 transform.scale.y = scale_y;
             }
+        }
+    }
+}
+
+/// Markiert voll verkohlte Zombies zum Zerbroeseln
+pub fn zombie_ash_death(
+    mut commands: Commands,
+    settings: Res<GameSettings>,
+    mut score: ResMut<Score>,
+    mut wave: ResMut<WaveState>,
+    mut combo: ResMut<ComboMeter>,
+    query: Query<(Entity, &Zombie, &Health), Without<AshCrumble>>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
+) {
+    for (entity, zombie, health) in query.iter() {
+        let burn_factor = (zombie.fire_visual / (health.max * 0.5)).clamp(0.0, 1.0);
+        if burn_factor < 0.95 { continue; }
+
+        wave.zombies_alive = wave.zombies_alive.saturating_sub(1);
+        super::collision::register_kill(&mut score, &mut combo, &settings);
+        sound_events.0.push(super::audio::SoundEvent::ZombieDeath);
+
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.try_insert(AshCrumble {
+                // Phase 1: 0.3s still stehen, Phase 2: 0.1s burst -> Partikel
+                timer: Timer::from_seconds(0.4, TimerMode::Once),
+                particle_timer: Timer::from_seconds(0.0, TimerMode::Once), // einmalig
+                killed: true,
+            });
+            ec.remove::<Health>();
+        }
+    }
+}
+
+/// Zombie steht kurz still, dann zerplatzt er in viele Asche-Partikel die runterfallen
+pub fn zombie_ash_crumble(
+    mut commands: Commands,
+    time: Res<Time>,
+    settings: Res<GameSettings>,
+    mut decal_map: ResMut<super::ground_decals::GroundDecalMap>,
+    mut query: Query<(Entity, &mut AshCrumble, &mut Transform, &Children)>,
+    sprite_query: Query<&Sprite, Without<AshParticle>>,
+) {
+    let mut rng = rand::rng();
+
+    for (entity, mut crumble, transform, children) in query.iter_mut() {
+        crumble.timer.tick(time.delta());
+        let progress = crumble.timer.fraction(); // 0 -> 1
+
+        // Phase 1 (0-0.75): still stehen, nichts passiert (Zombie ist schon geschrumpft/verkohlt)
+        if progress < 0.75 {
+            continue;
+        }
+
+        // Phase 2 (0.75): Burst! Zombie verschwindet, Partikel spawnen
+        if !crumble.particle_timer.is_finished() {
+            crumble.particle_timer.tick(time.delta() + std::time::Duration::from_secs(1)); // sofort fertig
+
+            let pos = transform.translation.truncate();
+            let scale = transform.scale.x.max(0.3);
+
+            // Viele Partikel auf einmal - jedes Koerperteil wird zu Asche
+            let particle_count = 20 + (scale * 10.0) as u32;
+            for _ in 0..particle_count {
+                let offset = Vec2::new(
+                    rng.random_range(-12.0 * scale..12.0 * scale),
+                    rng.random_range(-12.0 * scale..12.0 * scale),
+                );
+                let shade = rng.random_range(0.06..0.2);
+                let size = rng.random_range(1.5..4.0);
+
+                // Partikel fliegen auseinander und fallen dann runter (negatives Y = runter im Screen)
+                let spread = Vec2::new(
+                    rng.random_range(-30.0..30.0),
+                    rng.random_range(-25.0..10.0), // meistens runter
+                );
+
+                commands.spawn((
+                    Sprite {
+                        color: Color::srgba(shade, shade * 0.85, shade * 0.7, 0.95),
+                        custom_size: Some(Vec2::splat(size)),
+                        ..default()
+                    },
+                    Transform::from_xyz(pos.x + offset.x, pos.y + offset.y, 14.0),
+                    Velocity(spread),
+                    AshParticle {
+                        lifetime: Timer::from_seconds(rng.random_range(0.5..1.2), TimerMode::Once),
+                    },
+                ));
+            }
+
+            // Zombie sofort unsichtbar machen (Children Sprites)
+            for child in children.iter() {
+                if let Ok(sprite) = sprite_query.get(child) {
+                    let _ = sprite; // nur um den Query zu nutzen
+                    if let Ok(mut ec) = commands.get_entity(child) {
+                        ec.try_insert(Visibility::Hidden);
+                    }
+                }
+            }
+        }
+
+        // Nach Timer-Ende: Stamp + Despawn
+        if crumble.timer.is_finished() {
+            let pos = transform.translation.truncate();
+            decal_map.pending_stamps.push(super::ground_decals::DecalStamp::Ash {
+                position: pos,
+                radius: 16.0,
+            });
+            commands.entity(entity).try_despawn();
+
+            if rng.random::<f32>() < settings.crate_spawn_chance {
+                super::crates::spawn_random_crate(&mut commands, pos, settings.crate_despawn_time);
+            }
+        }
+    }
+}
+
+/// Asche-Partikel fallen runter, bremsen ab und verblassen
+pub fn ash_particle_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut AshParticle, &mut Transform, &mut Velocity, &mut Sprite)>,
+) {
+    for (entity, mut particle, mut transform, mut velocity, mut sprite) in query.iter_mut() {
+        particle.lifetime.tick(time.delta());
+        let dt = time.delta_secs();
+
+        // Schwerkraft: Partikel fallen nach unten
+        velocity.0.y -= 40.0 * dt;
+        // Luftwiderstand
+        velocity.0 *= 1.0 - 2.0 * dt;
+
+        transform.translation.x += velocity.0.x * dt;
+        transform.translation.y += velocity.0.y * dt;
+
+        let frac = particle.lifetime.fraction();
+
+        // Partikel werden dunkler am Boden
+        let c = sprite.color.to_srgba();
+        let alpha = (1.0 - frac * 0.7) * 0.95;
+        sprite.color = Color::srgba(c.red, c.green, c.blue, alpha);
+
+        if particle.lifetime.is_finished() {
+            commands.entity(entity).try_despawn();
         }
     }
 }
