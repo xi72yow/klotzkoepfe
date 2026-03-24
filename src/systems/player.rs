@@ -184,14 +184,7 @@ pub fn player_movement(
             }
         }
         if direction != Vec2::ZERO {
-            direction = direction.normalize();
-            // Keep last horizontal facing when moving purely vertically
-            if direction.x.abs() < 0.01 {
-                player.facing.y = direction.y;
-                player.facing = player.facing.normalize();
-            } else {
-                player.facing = direction;
-            }
+            player.facing = direction.normalize();
         }
         transform.translation.x += direction.x * settings.player_speed * time.delta_secs();
         transform.translation.y += direction.y * settings.player_speed * time.delta_secs();
