@@ -23,7 +23,7 @@ pub fn apply_knockback(
         transform.translation.x = transform.translation.x.clamp(-half_w, half_w);
         transform.translation.y = transform.translation.y.clamp(-half_h, half_h);
         if kb.duration.is_finished() {
-            commands.entity(entity).remove::<Knockback>();
+            commands.entity(entity).try_remove::<Knockback>();
         }
     }
 }

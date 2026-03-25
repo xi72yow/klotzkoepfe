@@ -151,6 +151,13 @@ pub fn lobby_input(
         lobby.player_count = 2;
     }
 
+    // Pfeiltasten / A/D zum Umschalten
+    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA)
+        || keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD)
+    {
+        lobby.player_count = if lobby.player_count == 1 { 2 } else { 1 };
+    }
+
     // Button Clicks
     if let Ok((interaction, _)) = one_btn.single() {
         if *interaction == Interaction::Pressed {

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
+use rand::Rng;
 
 use crate::components::*;
 
@@ -13,6 +14,10 @@ pub struct ElementalParams {
     pub freeze_intensity: f32,
     pub time: f32,
     pub freeze_flash: f32,
+    pub seed: f32,
+    pub _pad1: f32,
+    pub _pad2: f32,
+    pub _pad3: f32,
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -38,6 +43,7 @@ pub struct ElementalOverlay {
     pub zombie_entity: Entity,
     pub freeze_flash: f32,
     pub was_fully_frozen: bool,
+    pub seed: f32,
 }
 
 // ===================== Systems =====================
@@ -59,12 +65,18 @@ pub fn elemental_overlay_spawn(
         let has_overlay = overlay_query.iter().any(|o| o.zombie_entity == zombie_entity);
         if has_overlay { continue; }
 
+        let seed: f32 = rand::rng().random_range(0.0..1000.0);
+
         let material = materials.add(ElementalOverlayMaterial {
             params: ElementalParams {
                 burn_intensity: burn_factor,
                 freeze_intensity: freeze_factor,
                 time: 0.0,
                 freeze_flash: 0.0,
+                seed,
+                _pad1: 0.0,
+                _pad2: 0.0,
+                _pad3: 0.0,
             },
         });
 
@@ -78,6 +90,7 @@ pub fn elemental_overlay_spawn(
                 zombie_entity,
                 freeze_flash: 0.0,
                 was_fully_frozen: false,
+                seed,
             },
         ));
     }
@@ -123,6 +136,7 @@ pub fn elemental_overlay_update(
             material.params.freeze_intensity = freeze_factor;
             material.params.time = time.elapsed_secs();
             material.params.freeze_flash = overlay.freeze_flash;
+            material.params.seed = overlay.seed;
         }
     }
 }

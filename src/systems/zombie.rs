@@ -407,7 +407,7 @@ pub fn burning_system(
         }
 
         if burning.timer.is_finished() {
-            commands.entity(entity).remove::<Burning>();
+            commands.entity(entity).try_remove::<Burning>();
         }
     }
 
@@ -435,7 +435,7 @@ pub fn stun_system(
             if zombie.freeze_timer.is_finished() {
                 zombie.speed_modifier = 1.0;
             }
-            commands.entity(entity).remove::<Stunned>();
+            commands.entity(entity).try_remove::<Stunned>();
         }
     }
 }
@@ -613,7 +613,7 @@ pub fn zombie_ash_death(
                 particle_timer: Timer::from_seconds(0.0, TimerMode::Once), // einmalig
                 killed: true,
             });
-            ec.remove::<Health>();
+            ec.try_remove::<Health>();
         }
     }
 }
