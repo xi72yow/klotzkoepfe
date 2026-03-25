@@ -507,14 +507,12 @@ pub fn zombie_elemental_visuals(
         // Eis: freeze_factor 0..1, voller Effekt bei 50% max HP Schaden
         let freeze_factor = (zombie.freeze_visual / (health.max * 0.5)).clamp(0.0, 1.0);
 
-        // Voll vereist: Zombie bleibt stehen
+        // Speed direkt an freeze_factor koppeln: 0%=volle Speed, 80%+=eingefroren
         if freeze_factor > 0.8 {
             zombie.speed_modifier = 0.0;
-        } else if freeze_factor > 0.3 {
-            let slow = 1.0 - (freeze_factor - 0.3) / 0.5 * 0.85; // 100% -> 15%
-            if zombie.speed_modifier > slow {
-                zombie.speed_modifier = slow;
-            }
+        } else if freeze_factor > 0.01 {
+            let slow = 1.0 - freeze_factor / 0.8; // linear: 100% bei 0, 0% bei 0.8
+            zombie.speed_modifier = zombie.speed_modifier.min(slow);
         }
 
         // Verkohlt: Zombie wird langsamer (ab 30% bis 80% runter auf 20%)
@@ -525,7 +523,18 @@ pub fn zombie_elemental_visuals(
             }
         }
 
-        if burn_factor < 0.01 && freeze_factor < 0.01 { continue; }
+        // Keine Effekte aktiv -> Farbe/Scale zuruecksetzen
+        if burn_factor < 0.01 && freeze_factor < 0.01 {
+            for child in children.iter() {
+                if let Ok((mut sprite, mut transform, original)) = sprite_query.get_mut(child) {
+                    sprite.color = original.0;
+                    transform.scale.x = 1.0;
+                    transform.scale.y = 1.0;
+                }
+            }
+            zombie.speed_modifier = 1.0;
+            continue;
+        }
 
         // Scale-Faktoren berechnen (absolut, nicht kumulativ)
         let mut scale_x = 1.0f32;
