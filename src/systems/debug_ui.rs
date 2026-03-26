@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::components::*;
+use crate::constants::*;
 use crate::resources::*;
 
 #[derive(Component)]
@@ -162,6 +164,9 @@ fn all_items() -> Vec<Item> {
         // === Debug ===
         Item::Category("Debug"),
         Item::Value(Entry { label: "Cone-Gizmos", help: "Zeige Cone-Beam Debug-Linien (Flammenwerfer/Freeze)", get: |s| if s.show_cone_debug { 1.0 } else { 0.0 }, set: |s,v| s.show_cone_debug = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+        Item::Value(Entry { label: "Gitter", help: "Zeige Gitter-Overlay im Spielfeld", get: |s| if s.show_grid { 1.0 } else { 0.0 }, set: |s,v| s.show_grid = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+        Item::Value(Entry { label: "Reichweite", help: "Zeige Waffen-Reichweite als Kreis um Spieler", get: |s| if s.show_weapon_range { 1.0 } else { 0.0 }, set: |s,v| s.show_weapon_range = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+        Item::Value(Entry { label: "Hitboxen", help: "Zeige Kollisionsboxen fuer Spieler, Zombies und Projektile", get: |s| if s.show_hitboxes { 1.0 } else { 0.0 }, set: |s,v| s.show_hitboxes = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
 
         // === Gore ===
         Item::Category("Gore"),
@@ -712,9 +717,15 @@ pub fn settings_input(
     if keyboard.just_pressed(KeyCode::F6) {
         let show = settings.show_debug;
         let show_cone = settings.show_cone_debug;
+        let show_grid = settings.show_grid;
+        let show_range = settings.show_weapon_range;
+        let show_hitboxes = settings.show_hitboxes;
         *settings = GameSettings::default();
         settings.show_debug = show;
         settings.show_cone_debug = show_cone;
+        settings.show_grid = show_grid;
+        settings.show_weapon_range = show_range;
+        settings.show_hitboxes = show_hitboxes;
         ui_state.feedback_message = "Defaults geladen!".into();
         ui_state.feedback_timer = 2.0;
         ui_state.needs_rebuild = true;
@@ -975,9 +986,13 @@ pub fn settings_button_interaction(
             Interaction::Pressed => {
                 let show = settings.show_debug;
                 let show_cone = settings.show_cone_debug;
+                let show_grid = settings.show_grid;
+                let show_range = settings.show_weapon_range;
                 *settings = GameSettings::default();
                 settings.show_debug = show;
                 settings.show_cone_debug = show_cone;
+                settings.show_grid = show_grid;
+                settings.show_weapon_range = show_range;
                 ui_state.feedback_message = "Defaults geladen!".into();
                 ui_state.feedback_timer = 2.0;
                 ui_state.needs_rebuild = true;
@@ -1007,6 +1022,121 @@ pub fn gm_wave_apply(
         wave.current_wave = settings.gm_start_wave.saturating_sub(1);
         wave.active = false;
         wave.pausing = false;
+    }
+}
+
+// --- Debug Gizmos ---
+
+pub fn grid_overlay_gizmos(
+    mut gizmos: Gizmos,
+    settings: Res<GameSettings>,
+) {
+    if !settings.show_grid { return; }
+
+    let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
+    let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
+    let color = Color::srgba(1.0, 1.0, 1.0, 0.08);
+    let z = 19.0;
+    let step = 50.0;
+
+    // Vertikale Linien
+    let mut x = -half_w + step;
+    while x < half_w {
+        gizmos.line(Vec3::new(x, -half_h, z), Vec3::new(x, half_h, z), color);
+        x += step;
+    }
+    // Horizontale Linien
+    let mut y = -half_h + step;
+    while y < half_h {
+        gizmos.line(Vec3::new(-half_w, y, z), Vec3::new(half_w, y, z), color);
+        y += step;
+    }
+
+    // Achsen hervorheben
+    let axis_color = Color::srgba(1.0, 1.0, 1.0, 0.15);
+    gizmos.line(Vec3::new(0.0, -half_h, z), Vec3::new(0.0, half_h, z), axis_color);
+    gizmos.line(Vec3::new(-half_w, 0.0, z), Vec3::new(half_w, 0.0, z), axis_color);
+}
+
+pub fn weapon_range_gizmos(
+    mut gizmos: Gizmos,
+    settings: Res<GameSettings>,
+    score: Res<Score>,
+    player_query: Query<(&Player, &Transform)>,
+) {
+    if !settings.show_weapon_range { return; }
+
+    for (player, transform) in player_query.iter() {
+        let lvl = settings.weapon_level(player.weapon, score.points);
+        let ws = settings.weapon_at_level(player.weapon, lvl);
+        let pos = transform.translation.truncate();
+        let range = ws.range;
+        if range <= 0.0 { continue; }
+
+        let color = match player.id {
+            PlayerId::P1 => Color::srgba(0.2, 0.8, 0.2, 0.25),
+            PlayerId::P2 => Color::srgba(0.2, 0.4, 0.9, 0.25),
+        };
+
+        gizmos.circle_2d(Isometry2d::from_translation(pos), range, color);
+
+        // Richtungslinie
+        let dir_color = match player.id {
+            PlayerId::P1 => Color::srgba(0.2, 0.8, 0.2, 0.4),
+            PlayerId::P2 => Color::srgba(0.2, 0.4, 0.9, 0.4),
+        };
+        let tip = pos + player.facing * range;
+        gizmos.line(
+            Vec3::new(pos.x, pos.y, 19.0),
+            Vec3::new(tip.x, tip.y, 19.0),
+            dir_color,
+        );
+    }
+}
+
+pub fn hitbox_gizmos(
+    mut gizmos: Gizmos,
+    settings: Res<GameSettings>,
+    player_query: Query<&Transform, With<Player>>,
+    zombie_query: Query<(&Transform, Option<&BigZombie>), With<Zombie>>,
+    bullet_query: Query<&Transform, With<Bullet>>,
+) {
+    if !settings.show_hitboxes { return; }
+    let z = 19.0;
+
+    // Spieler-Hitboxen (gruen)
+    for transform in player_query.iter() {
+        let pos = transform.translation;
+        gizmos.rect(
+            Isometry3d::from_translation(Vec3::new(pos.x, pos.y, z)),
+            PLAYER_SIZE,
+            Color::srgba(0.0, 1.0, 0.0, 0.5),
+        );
+    }
+
+    // Zombie-Hitboxen (rot)
+    for (transform, big) in zombie_query.iter() {
+        let pos = transform.translation;
+        let size = if big.is_some() {
+            ZOMBIE_SIZE * settings.big_zombie_scale
+        } else {
+            ZOMBIE_SIZE
+        };
+        gizmos.rect(
+            Isometry3d::from_translation(Vec3::new(pos.x, pos.y, z)),
+            size,
+            Color::srgba(1.0, 0.0, 0.0, 0.4),
+        );
+    }
+
+    // Projektil-Hitboxen (gelb)
+    for transform in bullet_query.iter() {
+        let pos = transform.translation;
+        gizmos.rect(
+            Isometry3d::from_translation(Vec3::new(pos.x, pos.y, z)),
+            Vec2::new(8.0, 8.0),
+            Color::srgba(1.0, 1.0, 0.0, 0.5),
+        );
     }
 }
 

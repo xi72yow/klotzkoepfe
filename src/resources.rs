@@ -122,6 +122,12 @@ pub struct GameSettings {
     pub show_debug: bool,
     #[serde(skip)]
     pub show_cone_debug: bool,
+    #[serde(skip)]
+    pub show_grid: bool,
+    #[serde(skip)]
+    pub show_weapon_range: bool,
+    #[serde(skip)]
+    pub show_hitboxes: bool,
 
     #[serde(default = "default_player_count")]
     pub player_count: u32,
@@ -586,6 +592,9 @@ impl Default for GameSettings {
         Self {
             show_debug: false,
             show_cone_debug: false,
+            show_grid: false,
+            show_weapon_range: false,
+            show_hitboxes: false,
             player_count: 1,
             player_speed: 200.0,
             player_hp: 100.0,
