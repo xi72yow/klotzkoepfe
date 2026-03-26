@@ -12,6 +12,9 @@ pub struct OnePlayerButton;
 pub struct TwoPlayerButton;
 
 #[derive(Component)]
+pub struct StartButton;
+
+#[derive(Component)]
 pub struct PlayerCountLabel;
 
 #[derive(Resource)]
@@ -102,11 +105,31 @@ pub fn setup_lobby(mut commands: Commands) {
                     ..default()
                 });
 
+                // Start Button
+                panel.spawn((
+                    Button,
+                    Node {
+                        padding: UiRect::axes(Val::Px(40.0), Val::Px(15.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BackgroundColor(BTN_NORMAL),
+                    StartButton,
+                ))
+                .with_children(|btn| {
+                    btn.spawn((
+                        Text::new("Start"),
+                        TextFont { font_size: 24.0, ..default() },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+
                 // Start Hint
                 panel.spawn((
-                    Text::new("Enter / Leertaste zum Starten"),
-                    TextFont { font_size: 16.0, ..default() },
-                    TextColor(Color::srgb(0.5, 0.5, 0.5)),
+                    Text::new("oder Enter / Leertaste"),
+                    TextFont { font_size: 14.0, ..default() },
+                    TextColor(Color::srgb(0.4, 0.4, 0.4)),
                 ));
             });
         });
@@ -140,8 +163,9 @@ pub fn lobby_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut settings: ResMut<GameSettings>,
     mut lobby: ResMut<LobbySelection>,
-    mut one_btn: Query<(&Interaction, &mut BackgroundColor), (With<OnePlayerButton>, Without<TwoPlayerButton>)>,
-    mut two_btn: Query<(&Interaction, &mut BackgroundColor), (With<TwoPlayerButton>, Without<OnePlayerButton>)>,
+    mut one_btn: Query<(&Interaction, &mut BackgroundColor), (With<OnePlayerButton>, Without<TwoPlayerButton>, Without<StartButton>)>,
+    mut two_btn: Query<(&Interaction, &mut BackgroundColor), (With<TwoPlayerButton>, Without<OnePlayerButton>, Without<StartButton>)>,
+    mut start_btn: Query<(&Interaction, &mut BackgroundColor), (With<StartButton>, Without<OnePlayerButton>, Without<TwoPlayerButton>)>,
 ) {
     // Keyboard: 1/2 zum Waehlen
     if keyboard.just_pressed(KeyCode::Digit1) {
@@ -176,6 +200,18 @@ pub fn lobby_input(
     }
     if let Ok((interaction, mut bg)) = two_btn.single_mut() {
         *bg = button_color(lobby.player_count == 2, interaction);
+    }
+
+    // Start Button (Maus)
+    if let Ok((interaction, mut bg)) = start_btn.single_mut() {
+        match *interaction {
+            Interaction::Pressed => {
+                settings.player_count = lobby.player_count;
+                next_state.set(GameState::Playing);
+            }
+            Interaction::Hovered => { *bg = BackgroundColor(BTN_HOVER); }
+            Interaction::None => { *bg = BackgroundColor(BTN_NORMAL); }
+        }
     }
 
     // Enter/Space zum Starten

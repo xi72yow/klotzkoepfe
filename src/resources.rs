@@ -206,6 +206,14 @@ pub struct GameSettings {
     #[serde(default)]
     pub gamemaster_level: u32,
     #[serde(default)]
+    pub gm_start_wave: u32,
+    #[serde(default)]
+    pub gm_start_weapon: u32,
+    #[serde(skip)]
+    pub gm_weapon_dirty: bool,
+    #[serde(skip)]
+    pub gm_wave_dirty: bool,
+    #[serde(default)]
     pub friendly_fire: bool,
     #[serde(default = "default_true")]
     pub explosion_friendly_fire: bool,
@@ -650,6 +658,10 @@ impl Default for GameSettings {
             crate_despawn_time: 15.0,
             base_crate_respawn_time: 30.0,
             gamemaster_level: 0,
+            gm_start_wave: 0,
+            gm_start_weapon: 0,
+            gm_weapon_dirty: false,
+            gm_wave_dirty: false,
             friendly_fire: false,
             explosion_friendly_fire: true,
             knockback_strength_zombie: 150.0,

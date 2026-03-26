@@ -256,6 +256,7 @@ pub struct Player {
     pub reloading: bool,
     pub reload_elapsed: f32,
     pub magazines: HashMap<WeaponType, u32>,
+    pub weapon_level: u32,
 }
 
 

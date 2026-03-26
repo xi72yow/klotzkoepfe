@@ -72,6 +72,8 @@ fn main() {
                 debug_ui::settings_input,
                 debug_ui::settings_update_ui,
                 debug_ui::settings_button_interaction,
+                player::gm_weapon_apply,
+                debug_ui::gm_wave_apply,
             )
                 .run_if(in_state(GameState::Paused)),
         )
@@ -176,12 +178,17 @@ fn main() {
 fn start_playing(
     mut commands: Commands,
     settings: Res<GameSettings>,
+    mut wave: ResMut<resources::WaveState>,
     existing_players: Query<&components::Player>,
 ) {
     // Nur spawnen wenn noch keine Spieler existieren
     // (restart_game spawnt selbst, und Pause/Unlock kommen zurueck ohne Neuspawn)
     if existing_players.iter().count() > 0 {
         return;
+    }
+    // Gamemaster: Startwelle setzen
+    if settings.gm_start_wave > 0 {
+        wave.current_wave = settings.gm_start_wave.saturating_sub(1);
     }
     player::do_spawn_players(&mut commands, &settings);
     hud::setup_hud(commands.reborrow());

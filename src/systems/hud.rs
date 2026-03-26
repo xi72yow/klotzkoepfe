@@ -377,6 +377,13 @@ pub fn restart_game(world: &mut World) {
     // Resources resetten
     *world.resource_mut::<Score>() = Score::default();
     *world.resource_mut::<WaveState>() = WaveState::default();
+    // Gamemaster: Startwelle setzen
+    {
+        let gm_start_wave = world.resource::<GameSettings>().gm_start_wave;
+        if gm_start_wave > 0 {
+            world.resource_mut::<WaveState>().current_wave = gm_start_wave.saturating_sub(1);
+        }
+    }
     *world.resource_mut::<ComboMeter>() = ComboMeter::default();
     *world.resource_mut::<crate::systems::weapons::UnlockedWeapons>() =
         crate::systems::weapons::UnlockedWeapons::default();

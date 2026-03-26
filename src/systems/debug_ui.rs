@@ -82,6 +82,7 @@ enum DisplayMode {
     Bool,
     Percent,
     ReadOnly,
+    Carousel(&'static [&'static str]),
 }
 
 macro_rules! w {
@@ -92,9 +93,14 @@ macro_rules! w {
 
 fn all_items() -> Vec<Item> {
     vec![
+        // === Gamemaster ===
+        Item::Category("Gamemaster"),
+        Item::Value(Entry { label: "Level", help: "Alle Waffen auf gewaehltes Level", get: |s| s.gamemaster_level as f32, set: |s,v| s.gamemaster_level = v as u32, step: 1.0, min: 0.0, max: 3.0, display: DisplayMode::Carousel(&["Aus", "Lv1", "Lv2", "Lv3"]) }),
+        Item::Value(Entry { label: "Startwelle", help: "Welle bei Spielstart (0=normal)", get: |s| s.gm_start_wave as f32, set: |s,v| { s.gm_start_wave = v as u32; s.gm_wave_dirty = true; }, step: 1.0, min: 0.0, max: 100.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Startwaffe", help: "Waffe bei Spielstart", get: |s| s.gm_start_weapon as f32, set: |s,v| { s.gm_start_weapon = v as u32; s.gm_weapon_dirty = true; }, step: 1.0, min: 0.0, max: 12.0, display: DisplayMode::Carousel(&["Pistole", "Shotgun", "Uzi", "Flammenwerfer", "Granate", "Railgun", "Freeze Gun", "Kreissaege", "Tesla", "Mine", "Boomerang", "Rakete", "Laser"]) }),
+
         // === Spieler ===
         Item::Category("Spieler"),
-        Item::Value(Entry { label: "Gamemaster", help: "0=Aus, 1/2/3=Alle Waffen auf Lv1/Lv2/Lv3", get: |s| s.gamemaster_level as f32, set: |s,v| s.gamemaster_level = v as u32, step: 1.0, min: 0.0, max: 3.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Speed", help: "Bewegungsgeschwindigkeit der Spieler", get: |s| s.player_speed, set: |s,v| s.player_speed = v, step: 10.0, min: 50.0, max: 2000.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "HP", help: "Maximale Lebenspunkte der Spieler", get: |s| s.player_hp, set: |s,v| s.player_hp = v, step: 10.0, min: 10.0, max: 5000.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Regen/s", help: "HP-Regeneration pro Sekunde (0=aus)", get: |s| s.player_regen_rate, set: |s,v| s.player_regen_rate = v, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Float }),
@@ -400,6 +406,10 @@ fn format_value(val: f32, display: DisplayMode) -> String {
         DisplayMode::Percent => format!("{:.0}%", val),
         DisplayMode::ReadOnly => format!("{:.2}", val),
         DisplayMode::Float => format!("{:.2}", val),
+        DisplayMode::Carousel(labels) => {
+            let idx = val as usize;
+            if idx < labels.len() { format!("< {} >", labels[idx]) } else { format!("< {} >", idx) }
+        }
     }
 }
 
@@ -934,9 +944,9 @@ pub fn settings_button_interaction(
     mut settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<GameState>>,
     tab_query: Query<(&Interaction, &CategoryTab), Changed<Interaction>>,
-    save_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
-    defaults_query: Query<&Interaction, (Changed<Interaction>, With<DefaultsButton>)>,
-    resume_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>)>,
+    mut save_query: Query<(&Interaction, &mut BackgroundColor), (With<SaveButton>, Without<DefaultsButton>, Without<ResumeButton>)>,
+    mut defaults_query: Query<(&Interaction, &mut BackgroundColor), (With<DefaultsButton>, Without<SaveButton>, Without<ResumeButton>)>,
+    mut resume_query: Query<(&Interaction, &mut BackgroundColor), (With<ResumeButton>, Without<SaveButton>, Without<DefaultsButton>)>,
 ) {
     // Tab-Clicks
     for (interaction, tab) in tab_query.iter() {
@@ -948,29 +958,54 @@ pub fn settings_button_interaction(
     }
 
     // Action Buttons
-    for interaction in save_query.iter() {
-        if *interaction == Interaction::Pressed {
-            settings.save();
-            ui_state.feedback_message = "Gespeichert!".into();
-            ui_state.feedback_timer = 2.0;
+    for (interaction, mut bg) in save_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => {
+                settings.save();
+                ui_state.feedback_message = "Gespeichert!".into();
+                ui_state.feedback_timer = 2.0;
+            }
+            Interaction::Hovered => { *bg = BackgroundColor(BTN_HOVER); }
+            Interaction::None => { *bg = BackgroundColor(BTN_NORMAL); }
         }
     }
-    for interaction in defaults_query.iter() {
-        if *interaction == Interaction::Pressed {
-            let show = settings.show_debug;
-            let show_cone = settings.show_cone_debug;
-            *settings = GameSettings::default();
-            settings.show_debug = show;
-            settings.show_cone_debug = show_cone;
-            ui_state.feedback_message = "Defaults geladen!".into();
-            ui_state.feedback_timer = 2.0;
-            ui_state.needs_rebuild = true;
+    for (interaction, mut bg) in defaults_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => {
+                let show = settings.show_debug;
+                let show_cone = settings.show_cone_debug;
+                *settings = GameSettings::default();
+                settings.show_debug = show;
+                settings.show_cone_debug = show_cone;
+                ui_state.feedback_message = "Defaults geladen!".into();
+                ui_state.feedback_timer = 2.0;
+                ui_state.needs_rebuild = true;
+            }
+            Interaction::Hovered => { *bg = BackgroundColor(BTN_HOVER); }
+            Interaction::None => { *bg = BackgroundColor(BTN_NORMAL); }
         }
     }
-    for interaction in resume_query.iter() {
-        if *interaction == Interaction::Pressed {
-            next_state.set(GameState::Playing);
+    for (interaction, mut bg) in resume_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => { next_state.set(GameState::Playing); }
+            Interaction::Hovered => { *bg = BackgroundColor(BTN_HOVER); }
+            Interaction::None => { *bg = BackgroundColor(BTN_NORMAL); }
         }
+    }
+}
+
+pub fn gm_wave_apply(
+    mut settings: ResMut<GameSettings>,
+    mut wave: ResMut<WaveState>,
+) {
+    if !settings.gm_wave_dirty {
+        return;
+    }
+    settings.gm_wave_dirty = false;
+    if settings.gm_start_wave > 0 {
+        wave.current_wave = settings.gm_start_wave.saturating_sub(1);
+        wave.active = false;
+        wave.pausing = false;
     }
 }
 

@@ -39,8 +39,14 @@ fn darken(c: Color, factor: f32) -> Color {
 }
 
 fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: PlayerId, x: f32, color: Color, facing: Vec2) {
-    let ws = settings.weapon(WeaponType::Pistol);
-    let weapon = WeaponType::Pistol;
+    let weapon = if settings.gm_start_weapon > 0 {
+        let all = WeaponType::all();
+        let idx = (settings.gm_start_weapon as usize).min(all.len() - 1);
+        all[idx]
+    } else {
+        WeaponType::Pistol
+    };
+    let ws = settings.weapon_at_level(weapon, settings.weapon_level(weapon, 0));
     let weapon_arm_side: f32 = if rand::Rng::random_bool(&mut rand::rng(), 0.5) { 1.0 } else { -1.0 };
     let body_color = darken(color, 0.7);
 
@@ -64,6 +70,7 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 reload_timer: Timer::from_seconds(ws.reload_time, TimerMode::Once),
                 reloading: false, reload_elapsed: 0.0,
                 magazines,
+                weapon_level: 1,
             },
             Health { current: settings.player_hp, max: settings.player_hp },
             RegenCooldown { timer: Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once) },
@@ -517,6 +524,7 @@ pub fn player_weapon_switch(
             let ws = settings.weapon_at_level(new_weapon, lvl);
             let ws = &ws;
             player.weapon = new_weapon;
+            player.weapon_level = lvl;
             player.ammo = ws.magazine;
             player.reloading = false;
             player.reload_elapsed = 0.0;
@@ -541,6 +549,54 @@ pub fn player_weapon_switch(
                         spawn_weapon_parts(wp, new_weapon);
                     });
                 }
+            }
+        }
+    }
+}
+
+pub fn gm_weapon_apply(
+    mut commands: Commands,
+    mut settings: ResMut<GameSettings>,
+    score: Res<Score>,
+    mut query: Query<(&mut Player, &Children)>,
+    weapon_sprite_query: Query<(Entity, Option<&Children>), With<WeaponSprite>>,
+    part_query: Query<Entity, With<WeaponPart>>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
+) {
+    if !settings.gm_weapon_dirty {
+        return;
+    }
+    settings.gm_weapon_dirty = false;
+
+    let all = WeaponType::all();
+    let idx = (settings.gm_start_weapon as usize).min(all.len() - 1);
+    let new_weapon = all[idx];
+
+    for (mut player, player_children) in query.iter_mut() {
+        let lvl = settings.weapon_level(new_weapon, score.points);
+        let ws = settings.weapon_at_level(new_weapon, lvl);
+        player.weapon = new_weapon;
+        player.weapon_level = lvl;
+        player.ammo = ws.magazine;
+        player.reloading = false;
+        player.reload_elapsed = 0.0;
+        player.shoot_cooldown = Timer::from_seconds(ws.cooldown, TimerMode::Once);
+        player.shoot_cooldown.tick(std::time::Duration::from_secs(10));
+        player.reload_timer = Timer::from_seconds(ws.reload_time, TimerMode::Once);
+        sound_events.0.push(super::audio::SoundEvent::WeaponSwitch);
+
+        for pc in player_children.iter() {
+            if let Ok((ws_entity, ws_children)) = weapon_sprite_query.get(pc) {
+                if let Some(children) = ws_children {
+                    for wc in children.iter() {
+                        if part_query.get(wc).is_ok() {
+                            commands.entity(wc).try_despawn();
+                        }
+                    }
+                }
+                commands.entity(ws_entity).with_children(|wp| {
+                    spawn_weapon_parts(wp, new_weapon);
+                });
             }
         }
     }
@@ -577,6 +633,14 @@ pub fn player_shoot(
         let lvl = settings.weapon_level(player.weapon, score.points);
         let ws = settings.weapon_at_level(player.weapon, lvl);
         let ws = &ws;
+
+        // Bei Level-Up Magazin auffuellen
+        if lvl > player.weapon_level {
+            player.weapon_level = lvl;
+            player.ammo = ws.magazine;
+            player.reloading = false;
+            player.reload_elapsed = 0.0;
+        }
 
         // Ammo an geaenderte Magazingroesse anpassen (Debug-Menue)
         if player.ammo > ws.magazine {
