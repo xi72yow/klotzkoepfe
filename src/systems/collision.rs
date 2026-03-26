@@ -423,6 +423,7 @@ pub fn zombie_player_collision(
                     health.current -= settings.zombie_damage;
                     zombie.damage_cooldown.reset();
                     sound_events.0.push(super::audio::SoundEvent::PlayerDamage);
+                    spawn_blood(&mut commands, player_pos);
                     // Reset regen cooldown on damage
                     if let Some(mut regen) = regen {
                         regen.timer = Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once);
