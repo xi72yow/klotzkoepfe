@@ -20,7 +20,11 @@ pub struct PixelationMaterial {
     pub pixel_size: f32,
     pub screen_width: f32,
     pub screen_height: f32,
-    pub _padding: f32,
+    pub scanline_intensity: f32,
+    pub chromatic_aberration: f32,
+    pub vignette_intensity: f32,
+    pub _padding1: f32,
+    pub _padding2: f32,
 }
 
 impl Default for PixelationMaterial {
@@ -29,7 +33,11 @@ impl Default for PixelationMaterial {
             pixel_size: 1.0,
             screen_width: WINDOW_WIDTH,
             screen_height: WINDOW_HEIGHT,
-            _padding: 0.0,
+            scanline_intensity: 0.0,
+            chromatic_aberration: 0.0,
+            vignette_intensity: 0.0,
+            _padding1: 0.0,
+            _padding2: 0.0,
         }
     }
 }
@@ -81,6 +89,15 @@ pub fn update_pixelation(
             mat.pixel_size = settings.pixel_size.max(1.0);
         } else {
             mat.pixel_size = 1.0;
+        }
+        if settings.retro_crt_enabled {
+            mat.scanline_intensity = settings.scanline_intensity;
+            mat.chromatic_aberration = settings.chromatic_aberration;
+            mat.vignette_intensity = settings.vignette_intensity;
+        } else {
+            mat.scanline_intensity = 0.0;
+            mat.chromatic_aberration = 0.0;
+            mat.vignette_intensity = 0.0;
         }
         mat.screen_width = WINDOW_WIDTH;
         mat.screen_height = WINDOW_HEIGHT;

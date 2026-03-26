@@ -152,14 +152,21 @@ fn all_items() -> Vec<Item> {
         Item::Value(Entry { label: "Basis-Respawn", help: "Sekunden bis goldene Basis-Kiste respawnt", get: |s| s.base_crate_respawn_time, set: |s,v| s.base_crate_respawn_time = v, step: 5.0, min: 5.0, max: 300.0, display: DisplayMode::Float }),
 
         // === Anzeige ===
-        Item::Category("Anzeige"),
+        Item::Category("Audio"),
         Item::Value(Entry { label: "Volume", help: "Gesamtlautstaerke (0-100%)", get: |s| s.volume * 100.0, set: |s,v| s.volume = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
         Item::Value(Entry { label: "Waffen-Vol", help: "Lautstaerke Waffen/Explosionen (0-100%)", get: |s| s.vol_weapons * 100.0, set: |s,v| s.vol_weapons = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
         Item::Value(Entry { label: "Gegner-Vol", help: "Lautstaerke Zombie-Sounds (0-100%)", get: |s| s.vol_enemies * 100.0, set: |s,v| s.vol_enemies = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
         Item::Value(Entry { label: "Spieler-Vol", help: "Lautstaerke Spieler-Sounds (0-100%)", get: |s| s.vol_player * 100.0, set: |s,v| s.vol_player = v / 100.0, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
+
+        // === Anzeige ===
+        Item::Category("Anzeige"),
         Item::Value(Entry { label: "Fullscreen", help: "Vollbildmodus (auch mit F11)", get: |s| if s.fullscreen { 1.0 } else { 0.0 }, set: |s,v| s.fullscreen = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Pixelation", help: "Pixelierter Retro-Look", get: |s| if s.pixelation_enabled { 1.0 } else { 0.0 }, set: |s,v| s.pixelation_enabled = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Pixel-Groesse", help: "Groesse der Pixel (1.1=subtil, 1.5=mittel, 2.0=grob)", get: |s| s.pixel_size, set: |s,v| s.pixel_size = v, step: 0.05, min: 1.05, max: 2.5, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Retro CRT", help: "CRT-Monitor Effekt (Scanlines, Aberration, Vignette)", get: |s| if s.retro_crt_enabled { 1.0 } else { 0.0 }, set: |s,v| s.retro_crt_enabled = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+        Item::Value(Entry { label: "Scanlines", help: "Staerke der CRT-Scanlines (0=aus, 0.5=stark)", get: |s| s.scanline_intensity, set: |s,v| s.scanline_intensity = v, step: 0.05, min: 0.0, max: 0.8, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Aberration", help: "Chromatische Aberration in Pixeln (0=aus, 2=stark)", get: |s| s.chromatic_aberration, set: |s,v| s.chromatic_aberration = v, step: 0.1, min: 0.0, max: 4.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Vignette", help: "Abdunklung an den Raendern (0=aus, 0.5=stark)", get: |s| s.vignette_intensity, set: |s,v| s.vignette_intensity = v, step: 0.05, min: 0.0, max: 1.0, display: DisplayMode::Float }),
 
         // === Debug ===
         Item::Category("Debug"),

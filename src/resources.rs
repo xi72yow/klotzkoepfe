@@ -250,6 +250,15 @@ pub struct GameSettings {
     #[serde(default = "default_pixel_size")]
     pub pixel_size: f32,
 
+    #[serde(default)]
+    pub retro_crt_enabled: bool,
+    #[serde(default = "default_scanline_intensity")]
+    pub scanline_intensity: f32,
+    #[serde(default = "default_chromatic_aberration")]
+    pub chromatic_aberration: f32,
+    #[serde(default = "default_vignette_intensity")]
+    pub vignette_intensity: f32,
+
     // Gore-Settings
     #[serde(default = "default_blood_particles")]
     pub blood_particles: u32,
@@ -264,6 +273,9 @@ pub struct GameSettings {
 fn default_volume() -> f32 { 0.5 }
 fn default_category_volume() -> f32 { 1.0 }
 fn default_pixel_size() -> f32 { 1.3 }
+fn default_scanline_intensity() -> f32 { 0.3 }
+fn default_chromatic_aberration() -> f32 { 1.0 }
+fn default_vignette_intensity() -> f32 { 0.3 }
 fn default_player_count() -> u32 { 1 }
 fn default_regen_delay() -> f32 { 5.0 }
 fn default_true() -> bool { true }
@@ -687,6 +699,10 @@ impl Default for GameSettings {
             fullscreen: false,
             pixelation_enabled: false,
             pixel_size: 1.3,
+            retro_crt_enabled: false,
+            scanline_intensity: 0.3,
+            chromatic_aberration: 1.0,
+            vignette_intensity: 0.3,
             blood_particles: 4,
             blood_spread_speed: 100.0,
             dismember_chance: 0.30,

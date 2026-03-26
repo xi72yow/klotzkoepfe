@@ -526,7 +526,7 @@ pub fn player_weapon_switch(
             let ws = &ws;
             // Loop-Sound stoppen bei Waffenwechsel
             if let Some(ent) = player.shoot_loop_sound.take() {
-                commands.entity(ent).try_despawn();
+                if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
             }
             player.weapon = new_weapon;
             player.weapon_level = lvl;
@@ -580,7 +580,7 @@ pub fn gm_weapon_apply(
     for (mut player, player_children) in query.iter_mut() {
         // Loop-Sound stoppen bei Waffenwechsel
         if let Some(ent) = player.shoot_loop_sound.take() {
-            commands.entity(ent).try_despawn();
+            if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
         }
         let lvl = settings.weapon_level(new_weapon, score.points);
         let ws = settings.weapon_at_level(new_weapon, lvl);
@@ -664,7 +664,7 @@ pub fn player_shoot(
         if player.reloading {
             // Loop-Sound stoppen waehrend Reload
             if let Some(ent) = player.shoot_loop_sound.take() {
-                commands.entity(ent).try_despawn();
+                if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
             }
             player.reload_timer.tick(time.delta());
             player.reload_elapsed += time.delta_secs();
@@ -707,7 +707,7 @@ pub fn player_shoot(
             player.shoot_loop_sound = Some(ent);
         } else if !is_shooting_loop {
             if let Some(ent) = player.shoot_loop_sound.take() {
-                commands.entity(ent).try_despawn();
+                if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
             }
         }
 
