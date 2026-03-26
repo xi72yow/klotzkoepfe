@@ -96,6 +96,7 @@ fn all_items() -> Vec<Item> {
         // === Gamemaster ===
         Item::Category("Gamemaster"),
         Item::Value(Entry { label: "Level", help: "Alle Waffen auf gewaehltes Level", get: |s| s.gamemaster_level as f32, set: |s,v| s.gamemaster_level = v as u32, step: 1.0, min: 0.0, max: 3.0, display: DisplayMode::Carousel(&["Aus", "Lv1", "Lv2", "Lv3"]) }),
+        Item::Value(Entry { label: "Game Speed", help: "Spielgeschwindigkeit (0.1=Zeitlupe, 2=doppelt)", get: |s| s.gm_game_speed, set: |s,v| s.gm_game_speed = v, step: 0.05, min: 0.1, max: 4.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Startwelle", help: "Welle bei Spielstart (0=normal)", get: |s| s.gm_start_wave as f32, set: |s,v| { s.gm_start_wave = v as u32; s.gm_wave_dirty = true; }, step: 1.0, min: 0.0, max: 100.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Startwaffe", help: "Waffe bei Spielstart", get: |s| s.gm_start_weapon as f32, set: |s,v| { s.gm_start_weapon = v as u32; s.gm_weapon_dirty = true; }, step: 1.0, min: 0.0, max: 12.0, display: DisplayMode::Carousel(&["Pistole", "Shotgun", "Uzi", "Flammenwerfer", "Granate", "Railgun", "Freeze Gun", "Kreissaege", "Tesla", "Mine", "Boomerang", "Rakete", "Laser"]) }),
 

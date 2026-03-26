@@ -209,6 +209,8 @@ pub struct GameSettings {
     pub gm_start_wave: u32,
     #[serde(default)]
     pub gm_start_weapon: u32,
+    #[serde(default = "default_game_speed")]
+    pub gm_game_speed: f32,
     #[serde(skip)]
     pub gm_weapon_dirty: bool,
     #[serde(skip)]
@@ -259,6 +261,7 @@ fn default_pixel_size() -> f32 { 1.3 }
 fn default_player_count() -> u32 { 1 }
 fn default_regen_delay() -> f32 { 5.0 }
 fn default_true() -> bool { true }
+fn default_game_speed() -> f32 { 1.0 }
 fn default_crate_spawn_chance() -> f32 { 0.03 }
 fn default_crate_despawn_time() -> f32 { 15.0 }
 fn default_base_crate_respawn() -> f32 { 30.0 }
@@ -660,6 +663,7 @@ impl Default for GameSettings {
             gamemaster_level: 0,
             gm_start_wave: 0,
             gm_start_weapon: 0,
+            gm_game_speed: 1.0,
             gm_weapon_dirty: false,
             gm_wave_dirty: false,
             friendly_fire: false,

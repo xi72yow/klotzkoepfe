@@ -172,7 +172,18 @@ fn main() {
             hud::game_over_input.run_if(in_state(GameState::GameOver)),
         )
         .add_systems(OnExit(GameState::GameOver), hud::cleanup_game_over)
+        .add_systems(Update, apply_game_speed)
         .run();
+}
+
+fn apply_game_speed(
+    settings: Res<GameSettings>,
+    mut time: ResMut<Time<Virtual>>,
+) {
+    let speed = settings.gm_game_speed.clamp(0.1, 4.0);
+    if (time.relative_speed() - speed).abs() > 0.01 {
+        time.set_relative_speed(speed);
+    }
 }
 
 fn start_playing(
