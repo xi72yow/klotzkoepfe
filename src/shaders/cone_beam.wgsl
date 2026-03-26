@@ -11,7 +11,7 @@ struct ConeBeamParams {
     hit_distances_0: vec4<f32>,
     hit_distances_1: vec4<f32>,
     hit_count: f32,
-    _pad0: f32,
+    move_speed: f32,  // Bewegungsgeschwindigkeit (0..1)
     _pad1: f32,
     _pad2: f32,
 };
@@ -137,12 +137,11 @@ fn hit_absorption(dist: f32) -> f32 {
 fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let grid_size = 24.0;
     let uv = pixelate(raw_uv, grid_size);
+    let mspd = params.move_speed;
 
-    // UV mit Padding: Effekt nutzt nur inneren Bereich (~0.12..0.88)
-    let padded_x = (uv.x - 0.12) / 0.76;
-    let padded_y = (uv.y - 0.15) / 0.70;
-    let dist = padded_x;
-    let lateral = (padded_y - 0.5) * 2.0; // -1..1
+    // UV direkt nutzen (Mesh-Geometrie folgt der Chain-Kurve)
+    let dist = uv.x;
+    let lateral = (uv.y - 0.5) * 2.0;
 
     // Reichweite skaliert mit Intensity
     let reach = intensity;
@@ -152,12 +151,13 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let splash = hit_splash(dist, t, lateral);
     let absorption = hit_absorption(dist);
 
-    // UV-Distortion: staerker zur Spitze hin + extra Turbulenz an Treffern
+    // UV-Distortion: staerker zur Spitze hin + extra Turbulenz an Treffern + Bewegung
     let hit_turb = splash * 0.3;
-    let distort_strength = dist * dist * 0.4 + hit_turb;
+    let move_turb = mspd * 0.3;
+    let distort_strength = dist * dist * (0.4 + move_turb) + hit_turb;
     let distort = vec2(
-        fbm(uv * vec2(5.0, 3.0) + vec2(t * 3.0, t * 1.5)) - 0.5,
-        fbm(uv * vec2(4.0, 6.0) + vec2(t * 2.0, t * 4.0)) - 0.5
+        fbm(uv * vec2(5.0, 3.0) + vec2(t * (3.0 + mspd * 2.0), t * 1.5)) - 0.5,
+        fbm(uv * vec2(4.0, 6.0) + vec2(t * 2.0, t * (4.0 + mspd * 3.0))) - 0.5
     ) * distort_strength;
 
     let distorted_lateral = lateral + distort.y * 2.0;
@@ -203,15 +203,15 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let splash_glow = splash * 0.5;
     color = vec4(color.rgb + vec3(splash_glow, splash_glow * 0.7, splash_glow * 0.2), color.a);
 
-    // Flackern
-    let flicker = 0.75 + 0.25 * turb2;
+    // Flackern (staerker bei Bewegung)
+    let flicker = (0.75 - mspd * 0.1) + (0.25 + mspd * 0.1) * turb2;
     color = vec4(color.rgb * flicker, color.a);
 
     // Glutfetzen
     let ember = smoothstep(0.72, 0.78, turb1) * (1.0 - dist) * 0.6;
     color = vec4(color.rgb + vec3(ember, ember * 0.5, 0.0), color.a);
 
-    let alpha = flame_mask * dist_fade * start_fade * reach_fade;
+    let alpha = flame_mask * dist_fade * start_fade * reach_fade * 0.65;
 
     if alpha < 0.01 {
         discard;
@@ -220,39 +220,98 @@ fn render_flame(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     return vec4(color.rgb, alpha);
 }
 
+// ===================== Ice Hit Helpers =====================
+
+// Leichter Eis-Schleier um Trefferpunkte (weicher Nebel, nicht deckend)
+fn ice_hit_veil(dist: f32, lateral: f32) -> f32 {
+    var veil = 0.0;
+    let count = i32(params.hit_count + 0.5);
+    for (var i = 0; i < 8; i++) {
+        if i >= count { break; }
+        let hd = get_hit_dist(i);
+        // Weicher, breiter Schleier um den Trefferpunkt
+        let d = abs(dist - hd);
+        veil += smoothstep(0.15, 0.0, d) * 0.3;
+    }
+    return min(veil, 0.6);
+}
+
+// Einzelne feine Sparkle-Punkte am Trefferpunkt (gibt 0..1 Helligkeit + Farb-Shift zurueck)
+fn ice_hit_sparkles(dist: f32, lateral: f32, t: f32) -> vec2<f32> {
+    var sparkle = 0.0;
+    var color_shift = 0.0; // 0=weiss, 0.5=cyan, 1=gold
+    let count = i32(params.hit_count + 0.5);
+    for (var i = 0; i < 8; i++) {
+        if i >= count { break; }
+        let hd = get_hit_dist(i);
+        let hit_prox = smoothstep(0.15, 0.0, abs(dist - hd));
+        // Sehr feines Grid = einzelne Pixel-Punkte
+        let spark_uv = vec2(dist, lateral) * 100.0 + vec2(f32(i) * 17.0, t * 8.0);
+        let spark_cell = floor(spark_uv);
+        // Jeder Funke hat eigene Phase -> blinkt unabhaengig
+        let phase = hash(spark_cell + vec2(f32(i), 0.0)) * 6.28 + t * 18.0;
+        // Sehr scharf: nur ganz kurz hell (pow 24 = nadelduenn)
+        let pop = pow(max(sin(phase), 0.0), 24.0);
+        // Nur wenige Zellen sind aktive Funken (~8%)
+        let is_spark = step(0.92, hash(spark_cell + vec2(3.0, f32(i) + 17.0)));
+        let s = hit_prox * pop * is_spark;
+        // Farb-Shift pro Funke: manche gold, manche cyan, manche weiss
+        let hue = hash(spark_cell + vec2(f32(i) * 3.0, 29.0));
+        sparkle += s;
+        color_shift += s * hue;
+    }
+    let total = min(sparkle, 2.0);
+    let avg_hue = select(0.0, color_shift / max(sparkle, 0.001), total > 0.01);
+    return vec2(total, avg_hue);
+}
+
+// Eis-Absorption: Strahl wird hinter Treffern dunkler/kaelter statt schwaecher
+fn ice_absorption(dist: f32) -> f32 {
+    var absorption = 0.0;
+    let count = i32(params.hit_count + 0.5);
+    for (var i = 0; i < 8; i++) {
+        if i >= count { break; }
+        let hd = get_hit_dist(i);
+        let behind = smoothstep(hd - 0.02, hd + 0.08, dist);
+        absorption += behind * 0.12;
+    }
+    return min(absorption, 0.5);
+}
+
 // ===================== FREEZE =====================
 
 fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
-    let grid_size = 20.0;
+    // Feinere Pixelation als vorher (40 statt 20) fuer weicheren Look
+    let grid_size = 40.0;
     let uv = pixelate(raw_uv, grid_size);
+    let mspd = params.move_speed;
 
-    // UV mit Padding
-    let padded_x = (uv.x - 0.10) / 0.80;
-    let padded_y = (uv.y - 0.12) / 0.76;
-    let dist = padded_x;
-    let lateral = (padded_y - 0.5) * 2.0;
+    // UV direkt nutzen (Mesh-Geometrie folgt der Chain-Kurve)
+    let dist = uv.x;
+    let lateral = (uv.y - 0.5) * 2.0;
 
     // Reichweite skaliert mit Intensity
     let reach = intensity;
     let reach_fade = 1.0 - smoothstep(reach * 0.85, reach, dist);
 
-    // Treffer-Effekte
-    let splash = hit_splash(dist, t, lateral);
-    let absorption = hit_absorption(dist);
+    // Eis-spezifische Treffer-Effekte
+    let ice_veil = ice_hit_veil(dist, lateral);
+    let ice_sparks_raw = ice_hit_sparkles(dist, lateral, t);
+    let ice_spark_intensity = ice_sparks_raw.x;
+    let ice_spark_hue = ice_sparks_raw.y;
+    let absorption = ice_absorption(dist);
 
-    // Breiter, ungleichmaessiger Kegel - wolkenartig
+    // Breiter, ungleichmaessiger Kegel - wolkenartig + Bewegungsturbulenz
     let slow_t = t * 0.8;
-    let hit_turb = splash * 0.2;
     let cloud_distort = vec2(
-        fbm(uv * vec2(3.0, 2.5) + vec2(slow_t * 0.7, slow_t * 0.3)) - 0.5,
-        fbm(uv * vec2(2.5, 4.0) + vec2(slow_t * 0.5, slow_t * 0.9)) - 0.5
+        fbm(uv * vec2(3.0, 2.5) + vec2(slow_t * (0.7 + mspd * 1.5), slow_t * 0.3)) - 0.5,
+        fbm(uv * vec2(2.5, 4.0) + vec2(slow_t * 0.5, slow_t * (0.9 + mspd * 2.0))) - 0.5
     );
 
-    let distorted_lateral = lateral + cloud_distort.y * dist * 0.8;
+    let distorted_lateral = lateral + cloud_distort.y * dist * (0.8 + mspd * 0.4);
 
-    // Breite Wolkenform + Spritzer an Treffern
-    let splash_spread = splash * 0.3;
-    let spread = 0.05 + dist * 0.85 + cloud_distort.x * 0.2 + splash_spread;
+    // Breite Wolkenform
+    let spread = 0.05 + dist * 0.85 + cloud_distort.x * 0.2;
     let cone_factor = abs(distorted_lateral) / max(spread, 0.01);
 
     // Wolkige Rand-Maske
@@ -263,18 +322,39 @@ fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
     let dist_fade = smoothstep(1.1, 0.5, dist) * (1.0 - absorption);
     let start_fade = smoothstep(-0.05, 0.06, dist);
 
-    // Voronoi-Eiskristall-Textur
-    let crystal_uv = uv * vec2(8.0, 6.0) + vec2(-slow_t * 1.5, slow_t * 0.3);
+    // Voronoi-Eiskristall-Textur (feiner)
+    let crystal_uv = uv * vec2(10.0, 8.0) + vec2(-slow_t * 1.5, slow_t * 0.3);
     let vor = voronoi(crystal_uv);
-    let cell_edge = smoothstep(0.0, 0.15, vor.y - vor.x);
-    let crystal_pattern = mix(0.6, 1.0, cell_edge);
+    let cell_edge = smoothstep(0.0, 0.12, vor.y - vor.x);
+    let crystal_pattern = mix(0.7, 1.0, cell_edge);
 
-    // Glitzernde Punkte
-    let glitter_uv = uv * vec2(16.0, 12.0);
-    let glitter_cell = floor(glitter_uv);
-    let glitter_phase = hash(glitter_cell) * 6.28 + t * 4.0;
-    let glitter_brightness = pow(max(sin(glitter_phase), 0.0), 12.0);
-    let glitter = glitter_brightness * cloud_mask * 0.7 * step(0.7, hash(glitter_cell + vec2(7.0, 13.0)));
+    // ---- Magische Glitzer-Partikel ----
+    // Schicht 1: kleine, schnelle Funken (viele, subtil)
+    let spark_uv1 = raw_uv * vec2(32.0, 24.0) + vec2(-t * 3.0, t * 0.5);
+    let spark_cell1 = floor(spark_uv1);
+    let spark_phase1 = hash(spark_cell1) * 6.28 + t * 8.0;
+    let spark_bright1 = pow(max(sin(spark_phase1), 0.0), 20.0);
+    let spark1 = spark_bright1 * step(0.82, hash(spark_cell1 + vec2(3.0, 7.0)));
+
+    // Schicht 2: groessere, langsamere Zauber-Funken (wenige, hell)
+    let spark_uv2 = raw_uv * vec2(14.0, 10.0) + vec2(-t * 1.5, t * 0.8);
+    let spark_cell2 = floor(spark_uv2);
+    let spark_phase2 = hash(spark_cell2) * 6.28 + t * 3.5;
+    let spark_bright2 = pow(max(sin(spark_phase2), 0.0), 8.0);
+    let spark2 = spark_bright2 * step(0.75, hash(spark_cell2 + vec2(11.0, 5.0)));
+
+    // Schicht 3: wandernde Leuchtpunkte (ganz wenige, intensiv, zauberhaft)
+    let wander_uv = raw_uv * vec2(8.0, 6.0);
+    let wander_cell = floor(wander_uv);
+    let wander_offset = hash2(wander_cell) * 0.6 - 0.3;
+    let wander_pos = fract(wander_uv) - 0.5 + wander_offset * sin(t * 2.0 + hash(wander_cell) * 6.28);
+    let wander_dist = length(wander_pos);
+    let wander_pulse = pow(max(sin(hash(wander_cell + vec2(5.0, 9.0)) * 6.28 + t * 2.5), 0.0), 6.0);
+    let wander_glow = smoothstep(0.15, 0.0, wander_dist) * wander_pulse
+        * step(0.6, hash(wander_cell + vec2(17.0, 23.0)));
+
+    // Alle Glitzer nur innerhalb der Strahl-Maske
+    let total_sparkle = (spark1 * 0.5 + spark2 * 0.8 + wander_glow * 1.2) * cloud_mask;
 
     // Farbrampe
     let core_factor = 1.0 - smoothstep(0.0, 0.4, abs(distorted_lateral) / max(spread, 0.01));
@@ -294,22 +374,33 @@ fn render_freeze(raw_uv: vec2<f32>, t: f32, intensity: f32) -> vec4<f32> {
         color = mix(ice_mid, ice_deep, (ramp - 0.6) / 0.4);
     }
 
-    // Treffer: heller Aufblitz (weiss-blau)
-    let splash_glow = splash * 0.4;
-    color = vec4(color.rgb + vec3(splash_glow * 0.5, splash_glow * 0.7, splash_glow), color.a);
-
-    // Kristall-Textur
+    // Kristall-Textur (subtiler)
     color = vec4(color.rgb * crystal_pattern, color.a);
 
-    // Glitzer + extra Glitzer an Treffern
-    let hit_glitter = glitter + splash * 0.3;
-    color = vec4(color.rgb + vec3(hit_glitter, hit_glitter, hit_glitter * 1.2), color.a);
+    // Leichter Eis-Schleier um Treffer (dezenter weiss-blauer Nebel)
+    let veil_color = vec3(0.8, 0.9, 1.0) * ice_veil;
+    color = vec4(color.rgb + veil_color, color.a);
 
-    // Wolken-Flimmern
-    let cloud_flicker = 0.85 + 0.15 * noise(uv * vec2(6.0, 4.0) - vec2(slow_t * 1.2, slow_t * 0.8));
+    // Feine Sparkle-Punkte am Trefferpunkt: individuell gefaerbt
+    // hue 0..0.33 = weiss, 0.33..0.66 = cyan, 0.66..1.0 = gold
+    var spark_col = vec3(1.0, 1.0, 1.0);
+    if ice_spark_hue > 0.66 {
+        spark_col = vec3(1.0, 0.9, 0.5); // gold
+    } else if ice_spark_hue > 0.33 {
+        spark_col = vec3(0.5, 1.0, 1.0); // cyan
+    }
+    color = vec4(color.rgb + spark_col * ice_spark_intensity * 1.8, color.a);
+
+    // Magische Glitzer-Partikel: weiss-blaues Leuchten (ueberall im Strahl)
+    let sparkle_color = vec3(0.7, 0.85, 1.0) * total_sparkle;
+    color = vec4(color.rgb + sparkle_color, color.a);
+
+    // Wolken-Flimmern (staerker bei Bewegung)
+    let flicker_amp = 0.12 + mspd * 0.08;
+    let cloud_flicker = (1.0 - flicker_amp) + flicker_amp * noise(uv * vec2(6.0, 4.0) - vec2(slow_t * (1.2 + mspd * 1.0), slow_t * 0.8));
     color = vec4(color.rgb * cloud_flicker, color.a);
 
-    let alpha = cloud_mask * dist_fade * start_fade * reach_fade * 0.85;
+    let alpha = cloud_mask * dist_fade * start_fade * reach_fade * 0.55;
 
     if alpha < 0.01 {
         discard;

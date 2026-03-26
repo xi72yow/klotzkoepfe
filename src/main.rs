@@ -157,6 +157,7 @@ fn main() {
                 cone_beam::cone_beam_despawn,
                 cone_beam::cone_beam_update,
                 cone_beam::cone_beam_damage,
+                cone_beam::cone_beam_debug_gizmos,
                 elemental_overlay::elemental_overlay_spawn,
                 elemental_overlay::elemental_overlay_update,
                 elemental_overlay::elemental_overlay_despawn,
