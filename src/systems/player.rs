@@ -296,25 +296,6 @@ fn spawn_weapon_parts(parent: &mut bevy::prelude::ChildSpawnerCommands, weapon: 
     }
 }
 
-/// Auto-join P2 when arrow keys are pressed and P2 doesn't exist yet
-pub fn player2_join(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands,
-    mut settings: ResMut<GameSettings>,
-    player_query: Query<&Player>,
-) {
-    // Check if P2 already exists
-    if player_query.iter().any(|p| p.id == PlayerId::P2) {
-        return;
-    }
-
-    // Check if any P2 key is pressed
-    if keyboard.any_just_pressed([KeyCode::ArrowUp, KeyCode::ArrowDown, KeyCode::ArrowLeft, KeyCode::ArrowRight, KeyCode::Enter]) {
-        settings.player_count = 2;
-        spawn_one_player(&mut commands, &settings, PlayerId::P2, 80.0, PLAYER_COLOR_P2, Vec2::NEG_X);
-    }
-}
-
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -597,6 +578,11 @@ pub fn player_shoot(
         let ws = settings.weapon_at_level(player.weapon, lvl);
         let ws = &ws;
 
+        // Ammo an geaenderte Magazingroesse anpassen (Debug-Menue)
+        if player.ammo > ws.magazine {
+            player.ammo = ws.magazine;
+        }
+
         if player.reloading {
             player.reload_timer.tick(time.delta());
             player.reload_elapsed += time.delta_secs();
@@ -604,8 +590,12 @@ pub fn player_shoot(
                 player.reloading = false;
                 player.reload_elapsed = 0.0;
                 player.ammo = ws.magazine;
+                // Shoot-Cooldown sofort bereit nach Reload
+                player.shoot_cooldown = Timer::from_seconds(ws.cooldown, TimerMode::Once);
+                player.shoot_cooldown.tick(std::time::Duration::from_secs(10));
+            } else {
+                continue;
             }
-            continue;
         }
 
         player.shoot_cooldown.tick(time.delta());

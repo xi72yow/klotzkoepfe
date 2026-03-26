@@ -152,6 +152,10 @@ fn all_items() -> Vec<Item> {
         Item::Value(Entry { label: "Pixelation", help: "Pixelierter Retro-Look", get: |s| if s.pixelation_enabled { 1.0 } else { 0.0 }, set: |s,v| s.pixelation_enabled = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Pixel-Groesse", help: "Groesse der Pixel (1.1=subtil, 1.5=mittel, 2.0=grob)", get: |s| s.pixel_size, set: |s,v| s.pixel_size = v, step: 0.05, min: 1.05, max: 2.5, display: DisplayMode::Float }),
 
+        // === Debug ===
+        Item::Category("Debug"),
+        Item::Value(Entry { label: "Cone-Gizmos", help: "Zeige Cone-Beam Debug-Linien (Flammenwerfer/Freeze)", get: |s| if s.show_cone_debug { 1.0 } else { 0.0 }, set: |s,v| s.show_cone_debug = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+
         // === Gore ===
         Item::Category("Gore"),
         Item::Value(Entry { label: "Blut-Partikel", help: "Anzahl Blut-Partikel pro Treffer", get: |s| s.blood_particles as f32, set: |s,v| s.blood_particles = v as u32, step: 1.0, min: 0.0, max: 30.0, display: DisplayMode::Float }),
@@ -164,6 +168,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Pistole"),
         w!("Cooldown", "Sekunden zwischen Schuessen", pistol.cooldown, 0.05, 0.02, 10.0),
         w!("Magazin", "Schuss pro Magazin", pistol.magazine, 1.0, 1.0, 500.0),
+        w!("Reload", "Nachladezeit in Sekunden", pistol.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", pistol.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer", pistol.damage, 1.0, 1.0, 2000.0),
         w!("Range", "Maximale Reichweite", pistol.range, 25.0, 50.0, 5000.0),
         w!("Proj-Speed", "Projektilgeschwindigkeit", pistol.bullet_speed, 25.0, 50.0, 5000.0),
@@ -178,6 +184,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Shotgun"),
         w!("Cooldown", "Sekunden zwischen Schuessen", shotgun.cooldown, 0.1, 0.1, 10.0),
         w!("Magazin", "Schuss pro Magazin", shotgun.magazine, 1.0, 1.0, 200.0),
+        w!("Reload", "Nachladezeit in Sekunden", shotgun.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", shotgun.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Pellet", shotgun.damage, 1.0, 1.0, 500.0),
         w!("Pellets", "Anzahl Kugeln pro Schuss", shotgun.pellet_count, 1.0, 1.0, 100.0),
         w!("Spread", "Streuwinkel der Pellets", shotgun.spread_angle, 0.05, 0.1, 3.14),
@@ -192,6 +200,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Uzi"),
         w!("Cooldown", "Sekunden zwischen Schuessen", uzi.cooldown, 0.01, 0.02, 5.0),
         w!("Magazin", "Schuss pro Magazin", uzi.magazine, 5.0, 5.0, 1000.0),
+        w!("Reload", "Nachladezeit in Sekunden", uzi.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", uzi.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer", uzi.damage, 1.0, 1.0, 500.0),
         w!("Proj-Speed", "Projektilgeschwindigkeit", uzi.bullet_speed, 25.0, 50.0, 5000.0),
         w!("Spread", "Streuwinkel (0=exakt)", uzi.spread_angle, 0.01, 0.0, 3.14),
@@ -205,6 +215,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Flammenwerfer"),
         w!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower.cooldown, 0.01, 0.01, 5.0),
         w!("Magazin", "Partikel pro Tank", flamethrower.magazine, 5.0, 10.0, 2000.0),
+        w!("Reload", "Nachladezeit in Sekunden", flamethrower.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", flamethrower.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Partikel", flamethrower.damage, 0.5, 0.5, 200.0),
         w!("Range", "Reichweite der Flammen", flamethrower.range, 10.0, 50.0, 2000.0),
         w!("Proj-Speed", "Flammengeschwindigkeit", flamethrower.bullet_speed, 10.0, 50.0, 5000.0),
@@ -218,6 +230,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Granate"),
         w!("Cooldown", "Sekunden zwischen Wuerfen", grenade.cooldown, 0.1, 0.2, 30.0),
         w!("Magazin", "Granaten pro Magazin", grenade.magazine, 1.0, 1.0, 200.0),
+        w!("Reload", "Nachladezeit in Sekunden", grenade.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", grenade.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Explosionsschaden", grenade.damage, 5.0, 5.0, 5000.0),
         w!("Range", "Wurfweite (beeinflusst Zuender)", grenade.range, 25.0, 50.0, 5000.0),
         w!("Proj-Speed", "Wurfgeschwindigkeit", grenade.bullet_speed, 25.0, 50.0, 5000.0),
@@ -232,6 +246,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Railgun"),
         w!("Cooldown", "Sekunden zwischen Schuessen", railgun.cooldown, 0.1, 0.1, 30.0),
         w!("Magazin", "Schuss pro Magazin", railgun.magazine, 1.0, 1.0, 200.0),
+        w!("Reload", "Nachladezeit in Sekunden", railgun.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", railgun.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer (durchdringend)", railgun.damage, 5.0, 5.0, 5000.0),
         w!("Range", "Maximale Reichweite", railgun.range, 50.0, 100.0, 10000.0),
         w!("Proj-Speed", "Projektilgeschwindigkeit", railgun.bullet_speed, 50.0, 100.0, 10000.0),
@@ -247,6 +263,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Freeze Gun"),
         w!("Cooldown", "Sekunden zwischen Schuessen", freezegun.cooldown, 0.05, 0.05, 10.0),
         w!("Magazin", "Schuss pro Magazin", freezegun.magazine, 1.0, 1.0, 500.0),
+        w!("Reload", "Nachladezeit in Sekunden", freezegun.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", freezegun.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer", freezegun.damage, 0.5, 0.5, 200.0),
         w!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun.slow_factor, 0.05, 0.05, 0.99),
         w!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun.slow_duration, 0.5, 0.5, 60.0),
@@ -261,6 +279,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Kreissaege"),
         w!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw.cooldown, 0.1, 0.2, 30.0),
         w!("Magazin", "Saegen pro Magazin", buzzsaw.magazine, 1.0, 1.0, 200.0),
+        w!("Reload", "Nachladezeit in Sekunden", buzzsaw.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", buzzsaw.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer (durchdringend)", buzzsaw.damage, 1.0, 1.0, 500.0),
         w!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw.bullet_speed, 10.0, 30.0, 2000.0),
         w!("Range", "Maximale Flugdistanz", buzzsaw.range, 50.0, 100.0, 5000.0),
@@ -275,6 +295,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Tesla"),
         w!("Cooldown", "Sekunden zwischen Schuessen", tesla.cooldown, 0.05, 0.1, 10.0),
         w!("Magazin", "Schuss pro Magazin", tesla.magazine, 1.0, 1.0, 300.0),
+        w!("Reload", "Nachladezeit in Sekunden", tesla.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", tesla.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden Haupttreffer", tesla.damage, 1.0, 1.0, 1000.0),
         w!("Chains", "Anzahl Kettenblitz-Spruenge", tesla.chain_count, 1.0, 0.0, 50.0),
         w!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla.chain_range, 10.0, 20.0, 2000.0),
@@ -289,6 +311,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Mine"),
         w!("Cooldown", "Sekunden zwischen Platzierungen", mine.cooldown, 0.1, 0.2, 30.0),
         w!("Magazin", "Minen pro Magazin", mine.magazine, 1.0, 1.0, 200.0),
+        w!("Reload", "Nachladezeit in Sekunden", mine.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", mine.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Explosionsschaden", mine.damage, 5.0, 5.0, 5000.0),
         w!("Trigger-R", "Ausloeseradius (Zombie-Naehe)", mine.trigger_radius, 5.0, 10.0, 500.0),
         w!("Expl-Radius", "Explosionsradius", mine.explosion_radius_override, 5.0, 20.0, 1000.0),
@@ -302,6 +326,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Boomerang"),
         w!("Cooldown", "Sekunden zwischen Wuerfen", boomerang.cooldown, 0.1, 0.2, 30.0),
         w!("Magazin", "Wuerfe vor Reload", boomerang.magazine, 1.0, 1.0, 100.0),
+        w!("Reload", "Nachladezeit in Sekunden", boomerang.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", boomerang.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer", boomerang.damage, 1.0, 1.0, 1000.0),
         w!("Range", "Maximale Flugdistanz", boomerang.range, 25.0, 50.0, 5000.0),
         w!("Proj-Speed", "Fluggeschwindigkeit", boomerang.bullet_speed, 25.0, 100.0, 3000.0),
@@ -315,6 +341,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Rakete"),
         w!("Cooldown", "Sekunden zwischen Schuessen", rocket.cooldown, 0.1, 0.3, 30.0),
         w!("Magazin", "Raketen pro Magazin", rocket.magazine, 1.0, 1.0, 100.0),
+        w!("Reload", "Nachladezeit in Sekunden", rocket.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", rocket.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Explosionsschaden", rocket.damage, 5.0, 5.0, 5000.0),
         w!("Range", "Maximale Flugdistanz", rocket.range, 25.0, 50.0, 5000.0),
         w!("Proj-Speed", "Raketengeschwindigkeit", rocket.bullet_speed, 25.0, 50.0, 5000.0),
@@ -329,6 +357,8 @@ fn all_items() -> Vec<Item> {
         Item::Category("Laser"),
         w!("Cooldown", "Sekunden zwischen Schuessen", laser.cooldown, 0.01, 0.01, 5.0),
         w!("Magazin", "Schuss pro Batterie", laser.magazine, 5.0, 10.0, 2000.0),
+        w!("Reload", "Nachladezeit in Sekunden", laser.reload_time, 0.1, 0.1, 30.0),
+        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", laser.max_magazines, 1.0, 0.0, 999.0),
         w!("Damage", "Schaden pro Treffer", laser.damage, 0.5, 0.5, 500.0),
         w!("Range", "Maximale Reichweite", laser.range, 50.0, 100.0, 10000.0),
         w!("Proj-Speed", "Lasergeschwindigkeit", laser.bullet_speed, 100.0, 500.0, 10000.0),
@@ -670,8 +700,10 @@ pub fn settings_input(
     // F6: Defaults
     if keyboard.just_pressed(KeyCode::F6) {
         let show = settings.show_debug;
+        let show_cone = settings.show_cone_debug;
         *settings = GameSettings::default();
         settings.show_debug = show;
+        settings.show_cone_debug = show_cone;
         ui_state.feedback_message = "Defaults geladen!".into();
         ui_state.feedback_timer = 2.0;
         ui_state.needs_rebuild = true;
@@ -926,8 +958,10 @@ pub fn settings_button_interaction(
     for interaction in defaults_query.iter() {
         if *interaction == Interaction::Pressed {
             let show = settings.show_debug;
+            let show_cone = settings.show_cone_debug;
             *settings = GameSettings::default();
             settings.show_debug = show;
+            settings.show_cone_debug = show_cone;
             ui_state.feedback_message = "Defaults geladen!".into();
             ui_state.feedback_timer = 2.0;
             ui_state.needs_rebuild = true;

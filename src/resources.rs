@@ -120,6 +120,8 @@ pub struct WeaponSettings {
 pub struct GameSettings {
     #[serde(skip)]
     pub show_debug: bool,
+    #[serde(skip)]
+    pub show_cone_debug: bool,
 
     #[serde(default = "default_player_count")]
     pub player_count: u32,
@@ -572,6 +574,7 @@ impl Default for GameSettings {
     fn default() -> Self {
         Self {
             show_debug: false,
+            show_cone_debug: false,
             player_count: 1,
             player_speed: 200.0,
             player_hp: 100.0,

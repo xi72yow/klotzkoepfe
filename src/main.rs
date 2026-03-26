@@ -87,7 +87,6 @@ fn main() {
         .add_systems(
             Update,
             (
-                player::player2_join,
                 player::player_movement,
                 player::player_weapon_switch,
                 player::player_shoot,

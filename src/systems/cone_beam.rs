@@ -593,6 +593,9 @@ pub fn cone_beam_debug_gizmos(
     settings: Res<GameSettings>,
     score: Res<Score>,
 ) {
+    if !settings.show_cone_debug {
+        return;
+    }
     for beam in beam_query.iter() {
         let Some((player, pt, children)) = player_query.iter().find(|(p, _, _)| p.id == beam.owner_id) else {
             continue;
