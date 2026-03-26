@@ -23,6 +23,7 @@ pub enum SoundEvent {
     PlayerDeath,
     WaveStart,
     WeaponSwitch,
+    IceFreeze,
 }
 
 #[derive(Resource)]
@@ -31,7 +32,9 @@ pub struct GameAudio {
     pub shoot_uzi: Handle<AudioSource>,
     pub shoot_shotgun: Handle<AudioSource>,
     pub shoot_rocket: Handle<AudioSource>,
-    pub reload: Handle<AudioSource>,
+    pub reloads: Vec<Handle<AudioSource>>,
+    pub shoot_freeze: Handle<AudioSource>,
+    pub shoot_flamethrower: Handle<AudioSource>,
     pub explosion_grenade: Vec<Handle<AudioSource>>,
     pub explosion_rocket: Vec<Handle<AudioSource>>,
     pub explosion_mine: Vec<Handle<AudioSource>>,
@@ -39,6 +42,7 @@ pub struct GameAudio {
     pub zombie_deaths: Vec<Handle<AudioSource>>,
     pub player_hurts: Vec<Handle<AudioSource>>,
     pub player_death: Handle<AudioSource>,
+    pub ice_freezes: Vec<Handle<AudioSource>>,
 }
 
 fn load_wav(bytes: &'static [u8]) -> Arc<[u8]> {
@@ -54,7 +58,13 @@ pub fn setup_audio(
         shoot_uzi: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/uzi_shot.wav")) }),
         shoot_shotgun: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/shotgun_shot.wav")) }),
         shoot_rocket: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/rocket_shot.wav")) }),
-        reload: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/reload.wav")) }),
+        reloads: vec![
+            audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/reload_gunreload1.wav")) }),
+            audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/reload_assaultriflereload1.wav")) }),
+            audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/reload_handgun_reload.wav")) }),
+        ],
+        shoot_freeze: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/freeze_shot.wav")) }),
+        shoot_flamethrower: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/flamethrower_loop.wav")) }),
         explosion_grenade: vec![
             audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/explosion_small.wav")) }),
         ],
@@ -87,6 +97,9 @@ pub fn setup_audio(
             audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/player_hurt_4.wav")) }),
         ],
         player_death: audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/player_death.wav")) }),
+        ice_freezes: vec![
+            audio_sources.add(AudioSource { bytes: load_wav(include_bytes!("../sounds/ice_freeze_snap.wav")) }),
+        ],
     };
     commands.insert_resource(game_audio);
 }
@@ -122,11 +135,13 @@ pub fn play_sounds(
     const MAX_EXPLOSIONS: u32 = 2;
     const MAX_SHOOTS: u32 = 3;
     const MAX_PLAYER_HURTS: u32 = 1;
+    const MAX_ICE_FREEZES: u32 = 6;
     let mut zombie_death_count: u32 = 0;
     let mut zombie_groan_count: u32 = 0;
     let mut explosion_count: u32 = 0;
     let mut shoot_count: u32 = 0;
     let mut player_hurt_count: u32 = 0;
+    let mut ice_freeze_count: u32 = 0;
 
     for event in events.iter() {
         let (handle, vol_scale, category) = match event {
@@ -139,11 +154,15 @@ pub fn play_sounds(
                     WeaponType::Shotgun => (&audio.shoot_shotgun, 0.5, vol_weapons),
                     WeaponType::Rocket => (&audio.shoot_rocket, 0.5, vol_weapons),
                     WeaponType::Railgun => (&audio.shoot_pistol, 0.4, vol_weapons),
+                    WeaponType::FreezeGun | WeaponType::Flamethrower => continue, // Loop-Sounds im Player-System
                     WeaponType::Grenade => continue,
                     _ => continue,
                 }
             },
-            SoundEvent::Reload => (&audio.reload, 0.5, vol_weapons),
+            SoundEvent::Reload => {
+                let idx = pseudo_random() as usize % audio.reloads.len();
+                (&audio.reloads[idx], 0.5, vol_weapons)
+            },
             SoundEvent::Explosion(etype) => {
                 explosion_count += 1;
                 if explosion_count > MAX_EXPLOSIONS { continue; }
@@ -174,6 +193,12 @@ pub fn play_sounds(
                 (&audio.player_hurts[idx], 0.5, vol_player)
             },
             SoundEvent::PlayerDeath => (&audio.player_death, 0.7, vol_player),
+            SoundEvent::IceFreeze => {
+                ice_freeze_count += 1;
+                if ice_freeze_count > MAX_ICE_FREEZES { continue; }
+                let idx = pseudo_random() as usize % audio.ice_freezes.len();
+                (&audio.ice_freezes[idx], 0.3, vol_weapons)
+            },
             SoundEvent::CratePickup => continue, // TODO: Sound hinzufuegen
             SoundEvent::WaveStart => continue, // TODO: Sound hinzufuegen
             SoundEvent::WeaponSwitch => continue, // TODO: Sound hinzufuegen

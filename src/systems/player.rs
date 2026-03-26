@@ -71,6 +71,7 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 reloading: false, reload_elapsed: 0.0,
                 magazines,
                 weapon_level: 1,
+                shoot_loop_sound: None,
             },
             Health { current: settings.player_hp, max: settings.player_hp },
             RegenCooldown { timer: Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once) },
@@ -523,6 +524,10 @@ pub fn player_weapon_switch(
             let lvl = settings.weapon_level(new_weapon, score.points);
             let ws = settings.weapon_at_level(new_weapon, lvl);
             let ws = &ws;
+            // Loop-Sound stoppen bei Waffenwechsel
+            if let Some(ent) = player.shoot_loop_sound.take() {
+                commands.entity(ent).try_despawn();
+            }
             player.weapon = new_weapon;
             player.weapon_level = lvl;
             player.ammo = ws.magazine;
@@ -573,6 +578,10 @@ pub fn gm_weapon_apply(
     let new_weapon = all[idx];
 
     for (mut player, player_children) in query.iter_mut() {
+        // Loop-Sound stoppen bei Waffenwechsel
+        if let Some(ent) = player.shoot_loop_sound.take() {
+            commands.entity(ent).try_despawn();
+        }
         let lvl = settings.weapon_level(new_weapon, score.points);
         let ws = settings.weapon_at_level(new_weapon, lvl);
         player.weapon = new_weapon;
@@ -617,6 +626,10 @@ pub fn weapon_tip(player: &Player, player_pos: Vec2, weapon_arm_pos: Vec2) -> Ve
     player_pos + Vec2::new(weapon_arm_pos.x, weapon_arm_pos.y) + facing * forward_dist
 }
 
+fn is_loop_weapon(w: WeaponType) -> bool {
+    matches!(w, WeaponType::FreezeGun | WeaponType::Flamethrower)
+}
+
 pub fn player_shoot(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -628,6 +641,7 @@ pub fn player_shoot(
     mut sound_events: ResMut<super::audio::SoundQueue>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut flash_materials: ResMut<Assets<MuzzleFlashMaterial>>,
+    audio: Res<super::audio::GameAudio>,
 ) {
     for (mut player, transform, children) in query.iter_mut() {
         let lvl = settings.weapon_level(player.weapon, score.points);
@@ -648,6 +662,10 @@ pub fn player_shoot(
         }
 
         if player.reloading {
+            // Loop-Sound stoppen waehrend Reload
+            if let Some(ent) = player.shoot_loop_sound.take() {
+                commands.entity(ent).try_despawn();
+            }
             player.reload_timer.tick(time.delta());
             player.reload_elapsed += time.delta_secs();
             if player.reload_timer.is_finished() {
@@ -668,6 +686,30 @@ pub fn player_shoot(
             PlayerId::P1 => keyboard.pressed(KeyCode::Space),
             PlayerId::P2 => keyboard.pressed(KeyCode::Enter),
         };
+
+        // Loop-Sound Management fuer FreezeGun/Flamethrower
+        let is_shooting_loop = wants_shoot && player.ammo > 0 && is_loop_weapon(player.weapon);
+        if is_shooting_loop && player.shoot_loop_sound.is_none() {
+            let vol = settings.volume.powf(4.6) * settings.vol_weapons * 0.4;
+            let handle = match player.weapon {
+                WeaponType::FreezeGun => audio.shoot_freeze.clone(),
+                WeaponType::Flamethrower => audio.shoot_flamethrower.clone(),
+                _ => unreachable!(),
+            };
+            let ent = commands.spawn((
+                AudioPlayer::new(handle),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    volume: bevy::audio::Volume::Linear(vol),
+                    ..default()
+                },
+            )).id();
+            player.shoot_loop_sound = Some(ent);
+        } else if !is_shooting_loop {
+            if let Some(ent) = player.shoot_loop_sound.take() {
+                commands.entity(ent).try_despawn();
+            }
+        }
 
         if wants_shoot && player.shoot_cooldown.is_finished() && player.ammo > 0 {
             // Cooldown dynamisch aus Settings (fuer Tweaking)

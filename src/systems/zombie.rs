@@ -101,6 +101,7 @@ fn spawn_zombie(commands: &mut Commands, pos: Vec2, settings: &GameSettings, var
                 crawl_transition: 0.0,
                 fire_visual: 0.0,
                 freeze_visual: 0.0,
+                permanently_frozen: false,
             },
             Health { current: hp, max: hp },
             ZombieVariant(variant),
@@ -467,6 +468,7 @@ pub fn freeze_stack_system(
 pub fn zombie_freeze_thaw(
     time: Res<Time>,
     mut query: Query<(&mut Zombie, &Health)>,
+    mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     let dt = time.delta_secs();
     for (mut zombie, health) in query.iter_mut() {
@@ -475,6 +477,10 @@ pub fn zombie_freeze_thaw(
 
             // Voll vereist (>= 95%): permanenter Eisblock, kein Auftauen
             if freeze_factor >= 0.95 {
+                if !zombie.permanently_frozen {
+                    zombie.permanently_frozen = true;
+                    sound_events.0.push(super::audio::SoundEvent::IceFreeze);
+                }
                 continue;
             }
 

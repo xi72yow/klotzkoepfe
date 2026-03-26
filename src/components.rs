@@ -257,6 +257,7 @@ pub struct Player {
     pub reload_elapsed: f32,
     pub magazines: HashMap<WeaponType, u32>,
     pub weapon_level: u32,
+    pub shoot_loop_sound: Option<Entity>,
 }
 
 
@@ -385,6 +386,7 @@ pub struct Zombie {
     pub crawl_transition: f32, // 0.0 = stehend, 1.0 = liegend
     pub fire_visual: f32, // Akkumulierter Flammenwerfer-Schaden fuer Verkohlungs-Optik
     pub freeze_visual: f32, // Akkumulierter Frostkanone-Schaden fuer Einfrieren-Optik
+    pub permanently_frozen: bool,
 }
 
 #[derive(Component)]
