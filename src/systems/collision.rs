@@ -347,6 +347,9 @@ pub fn explosion_player_collision(
                     if !wave.dead_players.contains(&player.id) {
                         wave.dead_players.push(player.id);
                     }
+                    if let Some(ent) = player.shoot_loop_sound {
+                        if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
+                    }
                     sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                     commands.entity(entity).try_despawn();
                 }
@@ -389,6 +392,9 @@ pub fn bullet_player_collision(
                 if health.current <= 0.0 {
                     if !wave.dead_players.contains(&player.id) {
                         wave.dead_players.push(player.id);
+                    }
+                    if let Some(ent) = player.shoot_loop_sound {
+                        if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
                     }
                     sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                     commands.entity(player_entity).try_despawn();
@@ -439,6 +445,9 @@ pub fn zombie_player_collision(
                     if health.current <= 0.0 {
                         if !wave.dead_players.contains(&player.id) {
                             wave.dead_players.push(player.id);
+                        }
+                        if let Some(ent) = player.shoot_loop_sound {
+                            if let Ok(mut cmd) = commands.get_entity(ent) { cmd.try_despawn(); }
                         }
                         sound_events.0.push(super::audio::SoundEvent::PlayerDeath);
                         commands.entity(entity).try_despawn();

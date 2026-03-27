@@ -656,9 +656,15 @@ pub fn player_shoot(
             player.reload_elapsed = 0.0;
         }
 
-        // Ammo an geaenderte Magazingroesse anpassen (Debug-Menue)
+        // Ammo und Magazine an geaenderte Settings anpassen (Debug-Menue)
         if player.ammo > ws.magazine {
             player.ammo = ws.magazine;
+        }
+        let max_mags = if ws.max_magazines > 0 { ws.max_magazines } else { 999 };
+        let wtype = player.weapon;
+        let current_mags = player.magazines.entry(wtype).or_insert(max_mags);
+        if *current_mags > max_mags {
+            *current_mags = max_mags;
         }
 
         if player.reloading {
