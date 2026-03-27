@@ -573,3 +573,28 @@ pub struct BaseCrateSpawner {
     pub active: bool,
 }
 
+#[derive(Component)]
+pub struct Flare {
+    pub burn_timer: Timer,
+    pub smoke_timer: Timer,
+}
+
+#[derive(Component)]
+pub struct SmokeParticle {
+    pub lifetime: Timer,
+}
+
+#[derive(Component)]
+pub struct AirdropCrate {
+    pub target_pos: Vec2,
+    pub start_pos: Vec2,
+    pub fall_speed: f32,
+    pub shadow: Entity,
+    pub flare: Entity,
+    pub elapsed: f32,
+    pub curve_offset: f32,
+}
+
+#[derive(Component)]
+pub struct AirdropShadow;
+

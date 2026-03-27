@@ -127,6 +127,9 @@ fn main() {
                 collision::apply_knockback,
                 crates::crate_system,
                 crates::base_crate_respawn,
+                crates::flare_system,
+                crates::smoke_system,
+                crates::airdrop_system,
                 zombie::zombie_animation,
                 blood::gib_update,
             )

@@ -315,6 +315,8 @@ pub struct GameSettings {
     pub crate_despawn_time: f32,
     #[serde(default = "default_base_crate_respawn")]
     pub base_crate_respawn_time: f32,
+    #[serde(default = "default_flare_duration")]
+    pub flare_duration: f32,
 
     #[serde(default)]
     pub gamemaster_level: u32,
@@ -394,6 +396,7 @@ fn default_game_speed() -> f32 { 1.0 }
 fn default_crate_spawn_chance() -> f32 { 0.03 }
 fn default_crate_despawn_time() -> f32 { 15.0 }
 fn default_base_crate_respawn() -> f32 { 30.0 }
+fn default_flare_duration() -> f32 { 5.0 }
 fn default_max_magazines() -> u32 { 999 }
 fn default_big_zombie_hp() -> f32 { 100.0 }
 fn default_big_zombie_speed() -> f32 { 50.0 }
@@ -741,6 +744,7 @@ impl Default for GameSettings {
             crate_spawn_chance: 0.03,
             crate_despawn_time: 15.0,
             base_crate_respawn_time: 30.0,
+            flare_duration: 5.0,
             gamemaster_level: 0,
             gm_start_wave: 0,
             gm_start_weapon: 0,

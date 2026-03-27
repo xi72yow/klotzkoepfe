@@ -155,6 +155,7 @@ fn all_items() -> Vec<Item> {
         Item::Value(Entry { label: "Spawn-Chance", help: "Chance dass ein Zombie eine rote Kiste droppt", get: |s| s.crate_spawn_chance * 100.0, set: |s,v| s.crate_spawn_chance = v / 100.0, step: 5.0, min: 0.0, max: 100.0, display: DisplayMode::Percent }),
         Item::Value(Entry { label: "Despawn-Zeit", help: "Sekunden bis rote Kiste verschwindet", get: |s| s.crate_despawn_time, set: |s,v| s.crate_despawn_time = v, step: 1.0, min: 5.0, max: 120.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Basis-Respawn", help: "Sekunden bis goldene Basis-Kiste respawnt", get: |s| s.base_crate_respawn_time, set: |s,v| s.base_crate_respawn_time = v, step: 5.0, min: 5.0, max: 300.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Flare-Dauer", help: "Wie lange die Flare brennt bevor der Airdrop kommt", get: |s| s.flare_duration, set: |s,v| s.flare_duration = v, step: 0.5, min: 1.0, max: 20.0, display: DisplayMode::Float }),
 
         // === Anzeige ===
         Item::Category("Audio"),
