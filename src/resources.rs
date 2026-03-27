@@ -116,6 +116,108 @@ pub struct WeaponSettings {
     pub score_level_3: i32,
 }
 
+impl WeaponSettings {
+    fn empty() -> Self {
+        Self {
+            cooldown: 0.0, magazine: 0, reload_time: 0.0, range: 0.0,
+            damage: 0.0, bullet_speed: 0.0, score_required: 0,
+            pellet_count: 0, spread_angle: 0.0, pierce_count: 0, max_magazines: 0,
+            chain_count: 0, chain_range: 0.0,
+            slow_factor: 0.0, slow_duration: 0.0,
+            explosion_radius_override: 0.0, trigger_radius: 0.0,
+            score_level_2: 0, score_level_3: 0,
+        }
+    }
+}
+
+/// Berechnet Level 2/3 Stats aus Basis-Stats mit den alten Scaling-Formeln.
+/// Wird nur fuer Defaults und Migration alter Settings verwendet.
+fn legacy_scale(base: &WeaponSettings, w: WeaponType, level: u32) -> WeaponSettings {
+    let lvl = level.clamp(1, 3);
+    if lvl <= 1 { return base.clone(); }
+    match w {
+        WeaponType::Boomerang => WeaponSettings {
+            magazine: lvl,
+            cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
+            damage: base.damage * (1.0 + 0.25 * (lvl - 1) as f32),
+            ..base.clone()
+        },
+        WeaponType::Shotgun => WeaponSettings {
+            pellet_count: base.pellet_count + (lvl - 1) * 2,
+            spread_angle: base.spread_angle * (1.0 - 0.15 * (lvl - 1) as f32),
+            damage: base.damage * (1.0 + 0.15 * (lvl - 1) as f32),
+            ..base.clone()
+        },
+        WeaponType::Uzi => WeaponSettings {
+            cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
+            range: base.range * (1.0 + 0.25 * (lvl - 1) as f32),
+            magazine: base.magazine + (lvl - 1) * 10,
+            ..base.clone()
+        },
+        WeaponType::Tesla => WeaponSettings {
+            chain_count: base.chain_count + (lvl - 1) * 2,
+            chain_range: base.chain_range * (1.0 + 0.3 * (lvl - 1) as f32),
+            damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
+            ..base.clone()
+        },
+        WeaponType::FreezeGun => WeaponSettings {
+            slow_duration: base.slow_duration * (1.0 + 0.4 * (lvl - 1) as f32),
+            slow_factor: (base.slow_factor * (1.0 - 0.2 * (lvl - 1) as f32)).max(0.05),
+            magazine: base.magazine + (lvl - 1) * 5,
+            ..base.clone()
+        },
+        WeaponType::Mine => WeaponSettings {
+            explosion_radius_override: base.explosion_radius_override * (1.0 + 0.3 * (lvl - 1) as f32),
+            damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
+            magazine: base.magazine + (lvl - 1) * 2,
+            ..base.clone()
+        },
+        WeaponType::Grenade | WeaponType::Rocket => WeaponSettings {
+            damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
+            explosion_radius_override: base.explosion_radius_override * (1.0 + 0.25 * (lvl - 1) as f32),
+            magazine: base.magazine + (lvl - 1),
+            ..base.clone()
+        },
+        _ => WeaponSettings {
+            damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
+            cooldown: base.cooldown * (1.0 - 0.15 * (lvl - 1) as f32),
+            magazine: base.magazine + (lvl - 1) * 3,
+            range: base.range * (1.0 + 0.15 * (lvl - 1) as f32),
+            ..base.clone()
+        },
+    }
+}
+
+/// Erzeugt 3-Level Array aus Basis-Stats
+fn make_levels(w: WeaponType, base: WeaponSettings) -> [WeaponSettings; 3] {
+    let lv2 = legacy_scale(&base, w, 2);
+    let lv3 = legacy_scale(&base, w, 3);
+    [base, lv2, lv3]
+}
+
+/// Custom Deserializer: akzeptiert altes Format (einzelnes Objekt) und neues (Array von 3)
+fn deserialize_weapon_levels<'de, D>(deserializer: D) -> Result<[WeaponSettings; 3], D::Error>
+where D: serde::Deserializer<'de>
+{
+    use serde::de::Error;
+    use serde::Deserialize;
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match &value {
+        serde_json::Value::Array(arr) if arr.len() == 3 => {
+            let l1: WeaponSettings = serde_json::from_value(arr[0].clone()).map_err(D::Error::custom)?;
+            let l2: WeaponSettings = serde_json::from_value(arr[1].clone()).map_err(D::Error::custom)?;
+            let l3: WeaponSettings = serde_json::from_value(arr[2].clone()).map_err(D::Error::custom)?;
+            Ok([l1, l2, l3])
+        }
+        serde_json::Value::Object(_) => {
+            let base: WeaponSettings = serde_json::from_value(value).map_err(D::Error::custom)?;
+            // Altes Format: 3x kopieren, migrate_old_values macht Scaling
+            Ok([base.clone(), base.clone(), base])
+        }
+        _ => Err(D::Error::custom("expected array of 3 or object for weapon settings"))
+    }
+}
+
 #[derive(Resource, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GameSettings {
     #[serde(skip)]
@@ -178,27 +280,32 @@ pub struct GameSettings {
     #[serde(default = "default_zombie_increase_percent")]
     pub zombie_increase_percent: f32,
 
-    pub pistol: WeaponSettings,
-    pub uzi: WeaponSettings,
-    pub grenade: WeaponSettings,
-    pub railgun: WeaponSettings,
-    pub flamethrower: WeaponSettings,
-    #[serde(default = "default_shotgun")]
-    pub shotgun: WeaponSettings,
-    #[serde(default = "default_laser")]
-    pub laser: WeaponSettings,
-    #[serde(default = "default_mine")]
-    pub mine: WeaponSettings,
-    #[serde(default = "default_boomerang")]
-    pub boomerang: WeaponSettings,
-    #[serde(default = "default_tesla")]
-    pub tesla: WeaponSettings,
-    #[serde(default = "default_buzzsaw")]
-    pub buzzsaw: WeaponSettings,
-    #[serde(default = "default_rocket")]
-    pub rocket: WeaponSettings,
-    #[serde(default = "default_freezegun")]
-    pub freezegun: WeaponSettings,
+    #[serde(deserialize_with = "deserialize_weapon_levels")]
+    pub pistol: [WeaponSettings; 3],
+    #[serde(deserialize_with = "deserialize_weapon_levels")]
+    pub uzi: [WeaponSettings; 3],
+    #[serde(deserialize_with = "deserialize_weapon_levels")]
+    pub grenade: [WeaponSettings; 3],
+    #[serde(deserialize_with = "deserialize_weapon_levels")]
+    pub railgun: [WeaponSettings; 3],
+    #[serde(deserialize_with = "deserialize_weapon_levels")]
+    pub flamethrower: [WeaponSettings; 3],
+    #[serde(default = "default_shotgun_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub shotgun: [WeaponSettings; 3],
+    #[serde(default = "default_laser_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub laser: [WeaponSettings; 3],
+    #[serde(default = "default_mine_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub mine: [WeaponSettings; 3],
+    #[serde(default = "default_boomerang_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub boomerang: [WeaponSettings; 3],
+    #[serde(default = "default_tesla_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub tesla: [WeaponSettings; 3],
+    #[serde(default = "default_buzzsaw_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub buzzsaw: [WeaponSettings; 3],
+    #[serde(default = "default_rocket_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub rocket: [WeaponSettings; 3],
+    #[serde(default = "default_freezegun_levels", deserialize_with = "deserialize_weapon_levels")]
+    pub freezegun: [WeaponSettings; 3],
 
     pub explosion_radius: f32,
 
@@ -268,6 +375,10 @@ pub struct GameSettings {
     pub dismember_chance: f32,
     #[serde(default = "default_gib_decay")]
     pub gib_decay_time: f32,
+
+    /// Settings-Version fuer Migration (0 = altes Format mit einem WeaponSettings pro Waffe)
+    #[serde(default)]
+    pub settings_version: u32,
 }
 
 fn default_volume() -> f32 { 0.5 }
@@ -304,7 +415,8 @@ fn default_blood_spread() -> f32 { 100.0 }
 fn default_dismember_chance() -> f32 { 0.30 }
 fn default_gib_decay() -> f32 { 3.0 }
 
-fn default_shotgun() -> WeaponSettings {
+// Basis-WeaponSettings (Level 1) fuer jede Waffe
+fn base_shotgun() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.6, magazine: 8, reload_time: 2.0, range: 200.0,
         damage: 8.0, bullet_speed: 400.0, score_required: 100,
@@ -313,7 +425,7 @@ fn default_shotgun() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_laser() -> WeaponSettings {
+fn base_laser() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.03, magazine: 60, reload_time: 3.0, range: 600.0,
         damage: 4.0, bullet_speed: 1800.0, score_required: 15000,
@@ -322,7 +434,7 @@ fn default_laser() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_mine() -> WeaponSettings {
+fn base_mine() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.05, magazine: 5, reload_time: 3.0, range: 0.0,
         damage: 60.0, bullet_speed: 0.0, score_required: 7000,
@@ -331,7 +443,7 @@ fn default_mine() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_boomerang() -> WeaponSettings {
+fn base_boomerang() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.8, magazine: 1, reload_time: 2.0, range: 250.0,
         damage: 20.0, bullet_speed: 350.0, score_required: 8000,
@@ -340,7 +452,7 @@ fn default_boomerang() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_tesla() -> WeaponSettings {
+fn base_tesla() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.5, magazine: 8, reload_time: 2.0, range: 300.0,
         damage: 15.0, bullet_speed: 500.0, score_required: 6000,
@@ -349,7 +461,7 @@ fn default_tesla() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_buzzsaw() -> WeaponSettings {
+fn base_buzzsaw() -> WeaponSettings {
     WeaponSettings {
         cooldown: 1.2, magazine: 4, reload_time: 2.5, range: 500.0,
         damage: 12.0, bullet_speed: 100.0, score_required: 3000,
@@ -358,7 +470,7 @@ fn default_buzzsaw() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_rocket() -> WeaponSettings {
+fn base_rocket() -> WeaponSettings {
     WeaponSettings {
         cooldown: 1.5, magazine: 2, reload_time: 3.0, range: 400.0,
         damage: 80.0, bullet_speed: 450.0, score_required: 10000,
@@ -367,7 +479,7 @@ fn default_rocket() -> WeaponSettings {
         ..WeaponSettings::empty()
     }
 }
-fn default_freezegun() -> WeaponSettings {
+fn base_freezegun() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.3, magazine: 15, reload_time: 2.0, range: 250.0,
         damage: 3.0, bullet_speed: 400.0, score_required: 1500,
@@ -377,24 +489,26 @@ fn default_freezegun() -> WeaponSettings {
     }
 }
 
-impl WeaponSettings {
-    fn empty() -> Self {
-        Self {
-            cooldown: 0.0, magazine: 0, reload_time: 0.0, range: 0.0,
-            damage: 0.0, bullet_speed: 0.0, score_required: 0,
-            pellet_count: 0, spread_angle: 0.0, pierce_count: 0, max_magazines: 0,
-            chain_count: 0, chain_range: 0.0,
-            slow_factor: 0.0, slow_duration: 0.0,
-            explosion_radius_override: 0.0, trigger_radius: 0.0,
-            score_level_2: 0, score_level_3: 0,
-        }
-    }
-}
+// Default-Funktionen fuer serde (geben 3-Level Arrays zurueck)
+fn default_shotgun_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Shotgun, base_shotgun()) }
+fn default_laser_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Laser, base_laser()) }
+fn default_mine_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Mine, base_mine()) }
+fn default_boomerang_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Boomerang, base_boomerang()) }
+fn default_tesla_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Tesla, base_tesla()) }
+fn default_buzzsaw_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Buzzsaw, base_buzzsaw()) }
+fn default_rocket_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::Rocket, base_rocket()) }
+fn default_freezegun_levels() -> [WeaponSettings; 3] { make_levels(WeaponType::FreezeGun, base_freezegun()) }
 
 pub const MAX_WEAPON_LEVEL: u32 = 3;
 
 impl GameSettings {
+    /// Gibt Level-1 Stats zurueck (fuer Score-Thresholds, max_magazines etc.)
     pub fn weapon(&self, w: WeaponType) -> &WeaponSettings {
+        &self.weapon_levels(w)[0]
+    }
+
+    /// Gibt alle 3 Level-Stats zurueck
+    pub fn weapon_levels(&self, w: WeaponType) -> &[WeaponSettings; 3] {
         match w {
             WeaponType::Pistol => &self.pistol,
             WeaponType::Uzi => &self.uzi,
@@ -421,101 +535,37 @@ impl GameSettings {
         else { 1 }
     }
 
-    /// Gibt Level-skalierte Waffen-Stats zurueck
+    /// Gibt Stats fuer ein bestimmtes Level zurueck
     pub fn weapon_at_level(&self, w: WeaponType, level: u32) -> WeaponSettings {
-        let base = self.weapon(w).clone();
-        if level <= 1 { return base; }
-
-        let lvl = level.min(MAX_WEAPON_LEVEL);
-
-        // Spezial-Verhalten pro Waffe
-        match w {
-            WeaponType::Boomerang => {
-                // Level = Anzahl Wuerfe bevor Reload
-                WeaponSettings {
-                    magazine: lvl,
-                    cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
-                    damage: base.damage * (1.0 + 0.25 * (lvl - 1) as f32),
-                    ..base
-                }
-            }
-            WeaponType::Shotgun => {
-                // Mehr Pellets, engerer Spread
-                WeaponSettings {
-                    pellet_count: base.pellet_count + (lvl - 1) * 2,
-                    spread_angle: base.spread_angle * (1.0 - 0.15 * (lvl - 1) as f32),
-                    damage: base.damage * (1.0 + 0.15 * (lvl - 1) as f32),
-                    ..base
-                }
-            }
-            WeaponType::Uzi => {
-                // Schneller, mehr Reichweite, groesseres Magazin
-                WeaponSettings {
-                    cooldown: base.cooldown * (1.0 - 0.2 * (lvl - 1) as f32),
-                    range: base.range * (1.0 + 0.25 * (lvl - 1) as f32),
-                    magazine: base.magazine + (lvl - 1) * 10,
-                    ..base
-                }
-            }
-            WeaponType::Tesla => {
-                // Mehr Chains, mehr Chain-Range
-                WeaponSettings {
-                    chain_count: base.chain_count + (lvl - 1) * 2,
-                    chain_range: base.chain_range * (1.0 + 0.3 * (lvl - 1) as f32),
-                    damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
-                    ..base
-                }
-            }
-            WeaponType::FreezeGun => {
-                // Laenger einfrieren, mehr Slow
-                WeaponSettings {
-                    slow_duration: base.slow_duration * (1.0 + 0.4 * (lvl - 1) as f32),
-                    slow_factor: (base.slow_factor * (1.0 - 0.2 * (lvl - 1) as f32)).max(0.05),
-                    magazine: base.magazine + (lvl - 1) * 5,
-                    ..base
-                }
-            }
-            WeaponType::Mine => {
-                // Groesserer Explosionsradius, mehr Damage
-                WeaponSettings {
-                    explosion_radius_override: base.explosion_radius_override * (1.0 + 0.3 * (lvl - 1) as f32),
-                    damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
-                    magazine: base.magazine + (lvl - 1) * 2,
-                    ..base
-                }
-            }
-            WeaponType::Grenade | WeaponType::Rocket => {
-                // Mehr Damage, groesserer Radius
-                WeaponSettings {
-                    damage: base.damage * (1.0 + 0.3 * (lvl - 1) as f32),
-                    explosion_radius_override: base.explosion_radius_override * (1.0 + 0.25 * (lvl - 1) as f32),
-                    magazine: base.magazine + (lvl - 1),
-                    ..base
-                }
-            }
-            // Generisch: alle anderen Waffen
-            _ => {
-                WeaponSettings {
-                    damage: base.damage * (1.0 + 0.2 * (lvl - 1) as f32),
-                    cooldown: base.cooldown * (1.0 - 0.15 * (lvl - 1) as f32),
-                    magazine: base.magazine + (lvl - 1) * 3,
-                    range: base.range * (1.0 + 0.15 * (lvl - 1) as f32),
-                    ..base
-                }
-            }
-        }
+        let levels = self.weapon_levels(w);
+        levels[(level.clamp(1, MAX_WEAPON_LEVEL) - 1) as usize].clone()
     }
 
     /// Migrate old settings values to new defaults when they look outdated
     fn migrate_old_values(&mut self) {
         let defaults = Self::default();
+
+        // Migration von altem Format (settings_version == 0): Level 2/3 aus Formeln berechnen
+        if self.settings_version == 0 {
+            eprintln!("Altes Settings-Format erkannt, migriere auf Per-Level Stats...");
+            for weapon in WeaponType::all() {
+                let base = self.weapon(*weapon).clone();
+                let lv2 = legacy_scale(&base, *weapon, 2);
+                let lv3 = legacy_scale(&base, *weapon, 3);
+                let levels = self.weapon_levels_mut(*weapon);
+                levels[1] = lv2;
+                levels[2] = lv3;
+            }
+            self.settings_version = 1;
+        }
+
         // If score values are from the old system (pre-multiplier, < 100),
         // reset all weapon scores to new defaults
-        if self.pistol.score_level_2 < 100 || self.shotgun.score_required < 50 {
+        if self.pistol[0].score_level_2 < 100 || self.shotgun[0].score_required < 50 {
             eprintln!("Alte Score-Werte erkannt, migriere auf neue Defaults...");
             for weapon in WeaponType::all() {
                 let def = defaults.weapon(*weapon);
-                let ws = self.weapon_mut(*weapon);
+                let ws = &mut self.weapon_levels_mut(*weapon)[0];
                 ws.score_required = def.score_required;
                 ws.score_level_2 = def.score_level_2;
                 ws.score_level_3 = def.score_level_3;
@@ -524,7 +574,7 @@ impl GameSettings {
         // Fix max_magazines if 0 (old format)
         for weapon in WeaponType::all() {
             let def_mags = defaults.weapon(*weapon).max_magazines;
-            let ws = self.weapon_mut(*weapon);
+            let ws = &mut self.weapon_levels_mut(*weapon)[0];
             if ws.max_magazines == 0 && def_mags > 0 {
                 ws.max_magazines = def_mags;
             }
@@ -532,6 +582,10 @@ impl GameSettings {
     }
 
     pub fn weapon_mut(&mut self, w: WeaponType) -> &mut WeaponSettings {
+        &mut self.weapon_levels_mut(w)[0]
+    }
+
+    pub fn weapon_levels_mut(&mut self, w: WeaponType) -> &mut [WeaponSettings; 3] {
         match w {
             WeaponType::Pistol => &mut self.pistol,
             WeaponType::Uzi => &mut self.uzi,
@@ -601,6 +655,42 @@ impl GameSettings {
 
 impl Default for GameSettings {
     fn default() -> Self {
+        let pistol_base = WeaponSettings {
+            cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 350.0,
+            damage: 10.0, bullet_speed: 500.0, score_required: 0,
+            max_magazines: 10,
+            score_level_2: 500, score_level_3: 2000,
+            ..WeaponSettings::empty()
+        };
+        let uzi_base = WeaponSettings {
+            cooldown: 0.08, magazine: 30, reload_time: 2.0, range: 250.0,
+            damage: 5.0, bullet_speed: 450.0, score_required: 200,
+            max_magazines: 6,
+            score_level_2: 1500, score_level_3: 4000,
+            ..WeaponSettings::empty()
+        };
+        let grenade_base = WeaponSettings {
+            cooldown: 1.0, magazine: 3, reload_time: 2.5, range: 200.0,
+            damage: 50.0, bullet_speed: 300.0, score_required: 800,
+            max_magazines: 4,
+            score_level_2: 3000, score_level_3: 8000,
+            ..WeaponSettings::empty()
+        };
+        let railgun_base = WeaponSettings {
+            cooldown: 0.8, magazine: 5, reload_time: 2.0, range: 800.0,
+            damage: 100.0, bullet_speed: 1500.0, score_required: 5000,
+            pierce_count: 999, max_magazines: 4,
+            score_level_2: 12000, score_level_3: 25000,
+            ..WeaponSettings::empty()
+        };
+        let flamethrower_base = WeaponSettings {
+            cooldown: 0.04, magazine: 80, reload_time: 3.0, range: 120.0,
+            damage: 3.0, bullet_speed: 200.0, score_required: 400,
+            spread_angle: 0.3, max_magazines: 3,
+            score_level_2: 2000, score_level_3: 6000,
+            ..WeaponSettings::empty()
+        };
+
         Self {
             show_debug: false,
             show_cone_debug: false,
@@ -634,49 +724,19 @@ impl Default for GameSettings {
             min_spawn_interval: 0.2,
             percent_mode_after_wave: 20,
             zombie_increase_percent: 15.0,
-            pistol: WeaponSettings {
-                cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 350.0,
-                damage: 10.0, bullet_speed: 500.0, score_required: 0,
-                max_magazines: 10,
-                score_level_2: 500, score_level_3: 2000,
-                ..WeaponSettings::empty()
-            },
-            uzi: WeaponSettings {
-                cooldown: 0.08, magazine: 30, reload_time: 2.0, range: 250.0,
-                damage: 5.0, bullet_speed: 450.0, score_required: 200,
-                max_magazines: 6,
-                score_level_2: 1500, score_level_3: 4000,
-                ..WeaponSettings::empty()
-            },
-            grenade: WeaponSettings {
-                cooldown: 1.0, magazine: 3, reload_time: 2.5, range: 200.0,
-                damage: 50.0, bullet_speed: 300.0, score_required: 800,
-                max_magazines: 4,
-                score_level_2: 3000, score_level_3: 8000,
-                ..WeaponSettings::empty()
-            },
-            railgun: WeaponSettings {
-                cooldown: 0.8, magazine: 5, reload_time: 2.0, range: 800.0,
-                damage: 100.0, bullet_speed: 1500.0, score_required: 5000,
-                pierce_count: 999, max_magazines: 4,
-                score_level_2: 12000, score_level_3: 25000,
-                ..WeaponSettings::empty()
-            },
-            flamethrower: WeaponSettings {
-                cooldown: 0.04, magazine: 80, reload_time: 3.0, range: 120.0,
-                damage: 3.0, bullet_speed: 200.0, score_required: 400,
-                spread_angle: 0.3, max_magazines: 3,
-                score_level_2: 2000, score_level_3: 6000,
-                ..WeaponSettings::empty()
-            },
-            shotgun: default_shotgun(),
-            laser: default_laser(),
-            mine: default_mine(),
-            boomerang: default_boomerang(),
-            tesla: default_tesla(),
-            buzzsaw: default_buzzsaw(),
-            rocket: default_rocket(),
-            freezegun: default_freezegun(),
+            pistol: make_levels(WeaponType::Pistol, pistol_base),
+            uzi: make_levels(WeaponType::Uzi, uzi_base),
+            grenade: make_levels(WeaponType::Grenade, grenade_base),
+            railgun: make_levels(WeaponType::Railgun, railgun_base),
+            flamethrower: make_levels(WeaponType::Flamethrower, flamethrower_base),
+            shotgun: default_shotgun_levels(),
+            laser: default_laser_levels(),
+            mine: default_mine_levels(),
+            boomerang: default_boomerang_levels(),
+            tesla: default_tesla_levels(),
+            buzzsaw: default_buzzsaw_levels(),
+            rocket: default_rocket_levels(),
+            freezegun: default_freezegun_levels(),
             explosion_radius: 80.0,
             crate_spawn_chance: 0.03,
             crate_despawn_time: 15.0,
@@ -707,6 +767,7 @@ impl Default for GameSettings {
             blood_spread_speed: 100.0,
             dismember_chance: 0.30,
             gib_decay_time: 3.0,
+            settings_version: 1,
         }
     }
 }

@@ -64,7 +64,12 @@ impl Default for SettingsUiState {
 
 enum Item {
     Category(&'static str),
+    SubHeader(String),
     Value(Entry),
+}
+
+fn level_header(w: crate::components::WeaponType, lvl: u32) -> Item {
+    Item::SubHeader(format!("Level {} - {}", lvl, w.name_at_level(lvl)))
 }
 
 struct Entry {
@@ -87,9 +92,9 @@ enum DisplayMode {
     Carousel(&'static [&'static str]),
 }
 
-macro_rules! w {
-    ($label:expr, $help:expr, $field:ident . $prop:ident, $step:expr, $min:expr, $max:expr) => {
-        Item::Value(Entry { label: $label, help: $help, get: |s| s.$field.$prop as f32, set: |s,v| s.$field.$prop = v as _, step: $step, min: $min, max: $max, display: DisplayMode::Float })
+macro_rules! wl {
+    ($label:expr, $help:expr, $field:ident[$lvl:expr] . $prop:ident, $step:expr, $min:expr, $max:expr) => {
+        Item::Value(Entry { label: $label, help: $help, get: |s| s.$field[$lvl].$prop as f32, set: |s,v| s.$field[$lvl].$prop = v as _, step: $step, min: $min, max: $max, display: DisplayMode::Float })
     };
 }
 
@@ -185,208 +190,355 @@ fn all_items() -> Vec<Item> {
 
         // === Pistole ===
         Item::Category("Pistole"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", pistol.cooldown, 0.05, 0.02, 10.0),
-        w!("Magazin", "Schuss pro Magazin", pistol.magazine, 1.0, 1.0, 500.0),
-        w!("Reload", "Nachladezeit in Sekunden", pistol.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", pistol.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer", pistol.damage, 1.0, 1.0, 2000.0),
-        w!("Range", "Maximale Reichweite", pistol.range, 25.0, 50.0, 5000.0),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", pistol.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Spread", "Streuwinkel (0=exakt)", pistol.spread_angle, 0.01, 0.0, 3.14),
-        w!("Score", "Score zum Freischalten", pistol.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", pistol.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", pistol.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden auf Level 2", get: |s| s.weapon_at_level(crate::components::WeaponType::Pistol, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden auf Level 3", get: |s| s.weapon_at_level(crate::components::WeaponType::Pistol, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", pistol[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Pistol, 1),
+        wl!("Score", "Score zum Freischalten", pistol[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", pistol[0].cooldown, 0.05, 0.02, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", pistol[0].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", pistol[0].damage, 1.0, 1.0, 2000.0),
+        wl!("Range", "Maximale Reichweite", pistol[0].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", pistol[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", pistol[0].spread_angle, 0.01, 0.0, 3.14),
+        level_header(WeaponType::Pistol, 2),
+        wl!("Score", "Score fuer Level 2", pistol[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", pistol[1].cooldown, 0.05, 0.02, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", pistol[1].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", pistol[1].damage, 1.0, 1.0, 2000.0),
+        wl!("Range", "Maximale Reichweite", pistol[1].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", pistol[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", pistol[1].spread_angle, 0.01, 0.0, 3.14),
+        level_header(WeaponType::Pistol, 3),
+        wl!("Score", "Score fuer Level 3", pistol[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", pistol[2].cooldown, 0.05, 0.02, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", pistol[2].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", pistol[2].damage, 1.0, 1.0, 2000.0),
+        wl!("Range", "Maximale Reichweite", pistol[2].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", pistol[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", pistol[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Shotgun ===
         Item::Category("Shotgun"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", shotgun.cooldown, 0.1, 0.1, 10.0),
-        w!("Magazin", "Schuss pro Magazin", shotgun.magazine, 1.0, 1.0, 200.0),
-        w!("Reload", "Nachladezeit in Sekunden", shotgun.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", shotgun.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Pellet", shotgun.damage, 1.0, 1.0, 500.0),
-        w!("Pellets", "Anzahl Kugeln pro Schuss", shotgun.pellet_count, 1.0, 1.0, 100.0),
-        w!("Spread", "Streuwinkel der Pellets", shotgun.spread_angle, 0.05, 0.1, 3.14),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", shotgun.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Score", "Score zum Freischalten", shotgun.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", shotgun.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", shotgun.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Shotgun, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Shotgun, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", shotgun[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Shotgun, 1),
+        wl!("Score", "Score zum Freischalten", shotgun[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[0].cooldown, 0.1, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", shotgun[0].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Pellet", shotgun[0].damage, 1.0, 1.0, 500.0),
+        wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[0].pellet_count, 1.0, 1.0, 100.0),
+        wl!("Spread", "Streuwinkel der Pellets", shotgun[0].spread_angle, 0.05, 0.1, 3.14),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[0].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Shotgun, 2),
+        wl!("Score", "Score fuer Level 2", shotgun[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[1].cooldown, 0.1, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", shotgun[1].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Pellet", shotgun[1].damage, 1.0, 1.0, 500.0),
+        wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[1].pellet_count, 1.0, 1.0, 100.0),
+        wl!("Spread", "Streuwinkel der Pellets", shotgun[1].spread_angle, 0.05, 0.1, 3.14),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[1].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Shotgun, 3),
+        wl!("Score", "Score fuer Level 3", shotgun[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[2].cooldown, 0.1, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", shotgun[2].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Pellet", shotgun[2].damage, 1.0, 1.0, 500.0),
+        wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[2].pellet_count, 1.0, 1.0, 100.0),
+        wl!("Spread", "Streuwinkel der Pellets", shotgun[2].spread_angle, 0.05, 0.1, 3.14),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[2].bullet_speed, 25.0, 50.0, 5000.0),
 
         // === Uzi ===
         Item::Category("Uzi"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", uzi.cooldown, 0.01, 0.02, 5.0),
-        w!("Magazin", "Schuss pro Magazin", uzi.magazine, 5.0, 5.0, 1000.0),
-        w!("Reload", "Nachladezeit in Sekunden", uzi.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", uzi.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer", uzi.damage, 1.0, 1.0, 500.0),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", uzi.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Spread", "Streuwinkel (0=exakt)", uzi.spread_angle, 0.01, 0.0, 3.14),
-        w!("Score", "Score zum Freischalten", uzi.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", uzi.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", uzi.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Uzi, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Uzi, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", uzi[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Uzi, 1),
+        wl!("Score", "Score zum Freischalten", uzi[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[0].cooldown, 0.01, 0.02, 5.0),
+        wl!("Magazin", "Schuss pro Magazin", uzi[0].magazine, 5.0, 5.0, 1000.0),
+        wl!("Damage", "Schaden pro Treffer", uzi[0].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", uzi[0].spread_angle, 0.01, 0.0, 3.14),
+        level_header(WeaponType::Uzi, 2),
+        wl!("Score", "Score fuer Level 2", uzi[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[1].cooldown, 0.01, 0.02, 5.0),
+        wl!("Magazin", "Schuss pro Magazin", uzi[1].magazine, 5.0, 5.0, 1000.0),
+        wl!("Damage", "Schaden pro Treffer", uzi[1].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", uzi[1].spread_angle, 0.01, 0.0, 3.14),
+        level_header(WeaponType::Uzi, 3),
+        wl!("Score", "Score fuer Level 3", uzi[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[2].cooldown, 0.01, 0.02, 5.0),
+        wl!("Magazin", "Schuss pro Magazin", uzi[2].magazine, 5.0, 5.0, 1000.0),
+        wl!("Damage", "Schaden pro Treffer", uzi[2].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", uzi[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Flammenwerfer ===
         Item::Category("Flammenwerfer"),
-        w!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower.cooldown, 0.01, 0.01, 5.0),
-        w!("Magazin", "Partikel pro Tank", flamethrower.magazine, 5.0, 10.0, 2000.0),
-        w!("Reload", "Nachladezeit in Sekunden", flamethrower.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", flamethrower.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Partikel", flamethrower.damage, 0.5, 0.5, 200.0),
-        w!("Range", "Reichweite der Flammen", flamethrower.range, 10.0, 50.0, 2000.0),
-        w!("Proj-Speed", "Flammengeschwindigkeit", flamethrower.bullet_speed, 10.0, 50.0, 5000.0),
-        w!("Score", "Score zum Freischalten", flamethrower.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", flamethrower.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", flamethrower.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Flamethrower, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Flamethrower, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", flamethrower[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Flamethrower, 1),
+        wl!("Score", "Score zum Freischalten", flamethrower[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower[0].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Partikel pro Tank", flamethrower[0].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Partikel", flamethrower[0].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Reichweite der Flammen", flamethrower[0].range, 10.0, 50.0, 2000.0),
+        wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[0].bullet_speed, 10.0, 50.0, 5000.0),
+        level_header(WeaponType::Flamethrower, 2),
+        wl!("Score", "Score fuer Level 2", flamethrower[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower[1].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Partikel pro Tank", flamethrower[1].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Partikel", flamethrower[1].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Reichweite der Flammen", flamethrower[1].range, 10.0, 50.0, 2000.0),
+        wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[1].bullet_speed, 10.0, 50.0, 5000.0),
+        level_header(WeaponType::Flamethrower, 3),
+        wl!("Score", "Score fuer Level 3", flamethrower[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower[2].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Partikel pro Tank", flamethrower[2].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Partikel", flamethrower[2].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Reichweite der Flammen", flamethrower[2].range, 10.0, 50.0, 2000.0),
+        wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[2].bullet_speed, 10.0, 50.0, 5000.0),
 
         // === Granate ===
         Item::Category("Granate"),
-        w!("Cooldown", "Sekunden zwischen Wuerfen", grenade.cooldown, 0.1, 0.2, 30.0),
-        w!("Magazin", "Granaten pro Magazin", grenade.magazine, 1.0, 1.0, 200.0),
-        w!("Reload", "Nachladezeit in Sekunden", grenade.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", grenade.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Explosionsschaden", grenade.damage, 5.0, 5.0, 5000.0),
-        w!("Range", "Wurfweite (beeinflusst Zuender)", grenade.range, 25.0, 50.0, 5000.0),
-        w!("Proj-Speed", "Wurfgeschwindigkeit", grenade.bullet_speed, 25.0, 50.0, 5000.0),
-        Item::Value(Entry { label: "Fuse (berechnet)", help: "Zuenderzeit = Range / Speed", get: |s| s.grenade.range / s.grenade.bullet_speed.max(1.0), set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        w!("Score", "Score zum Freischalten", grenade.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", grenade.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", grenade.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Grenade, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Grenade, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", grenade[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Grenade, 1),
+        wl!("Score", "Score zum Freischalten", grenade[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", grenade[0].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Granaten pro Magazin", grenade[0].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", grenade[0].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[0].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[0].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Grenade, 2),
+        wl!("Score", "Score fuer Level 2", grenade[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", grenade[1].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Granaten pro Magazin", grenade[1].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", grenade[1].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[1].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[1].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Grenade, 3),
+        wl!("Score", "Score fuer Level 3", grenade[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", grenade[2].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Granaten pro Magazin", grenade[2].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", grenade[2].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[2].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[2].bullet_speed, 25.0, 50.0, 5000.0),
 
         // === Railgun ===
         Item::Category("Railgun"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", railgun.cooldown, 0.1, 0.1, 30.0),
-        w!("Magazin", "Schuss pro Magazin", railgun.magazine, 1.0, 1.0, 200.0),
-        w!("Reload", "Nachladezeit in Sekunden", railgun.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", railgun.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer (durchdringend)", railgun.damage, 5.0, 5.0, 5000.0),
-        w!("Range", "Maximale Reichweite", railgun.range, 50.0, 100.0, 10000.0),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", railgun.bullet_speed, 50.0, 100.0, 10000.0),
-        w!("Spread", "Streuwinkel (0=exakt)", railgun.spread_angle, 0.01, 0.0, 3.14),
-        w!("Pierce", "Gegner die durchdrungen werden", railgun.pierce_count, 1.0, 1.0, 999.0),
-        w!("Score", "Score zum Freischalten", railgun.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", railgun.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", railgun.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Railgun, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Railgun, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", railgun[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Railgun, 1),
+        wl!("Score", "Score zum Freischalten", railgun[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", railgun[0].cooldown, 0.1, 0.1, 30.0),
+        wl!("Magazin", "Schuss pro Magazin", railgun[0].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", railgun[0].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Reichweite", railgun[0].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", railgun[0].bullet_speed, 50.0, 100.0, 10000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", railgun[0].spread_angle, 0.01, 0.0, 3.14),
+        wl!("Pierce", "Gegner die durchdrungen werden", railgun[0].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Railgun, 2),
+        wl!("Score", "Score fuer Level 2", railgun[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", railgun[1].cooldown, 0.1, 0.1, 30.0),
+        wl!("Magazin", "Schuss pro Magazin", railgun[1].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", railgun[1].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Reichweite", railgun[1].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", railgun[1].bullet_speed, 50.0, 100.0, 10000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", railgun[1].spread_angle, 0.01, 0.0, 3.14),
+        wl!("Pierce", "Gegner die durchdrungen werden", railgun[1].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Railgun, 3),
+        wl!("Score", "Score fuer Level 3", railgun[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", railgun[2].cooldown, 0.1, 0.1, 30.0),
+        wl!("Magazin", "Schuss pro Magazin", railgun[2].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", railgun[2].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Reichweite", railgun[2].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", railgun[2].bullet_speed, 50.0, 100.0, 10000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", railgun[2].spread_angle, 0.01, 0.0, 3.14),
+        wl!("Pierce", "Gegner die durchdrungen werden", railgun[2].pierce_count, 1.0, 1.0, 999.0),
 
         // === Freeze Gun ===
         Item::Category("Freeze Gun"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", freezegun.cooldown, 0.05, 0.05, 10.0),
-        w!("Magazin", "Schuss pro Magazin", freezegun.magazine, 1.0, 1.0, 500.0),
-        w!("Reload", "Nachladezeit in Sekunden", freezegun.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", freezegun.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer", freezegun.damage, 0.5, 0.5, 200.0),
-        w!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun.slow_factor, 0.05, 0.05, 0.99),
-        w!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun.slow_duration, 0.5, 0.5, 60.0),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", freezegun.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Score", "Score zum Freischalten", freezegun.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", freezegun.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", freezegun.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::FreezeGun, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::FreezeGun, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", freezegun[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::FreezeGun, 1),
+        wl!("Score", "Score zum Freischalten", freezegun[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[0].cooldown, 0.05, 0.05, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", freezegun[0].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", freezegun[0].damage, 0.5, 0.5, 200.0),
+        wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[0].slow_factor, 0.05, 0.05, 0.99),
+        wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[0].slow_duration, 0.5, 0.5, 60.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[0].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::FreezeGun, 2),
+        wl!("Score", "Score fuer Level 2", freezegun[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[1].cooldown, 0.05, 0.05, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", freezegun[1].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", freezegun[1].damage, 0.5, 0.5, 200.0),
+        wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[1].slow_factor, 0.05, 0.05, 0.99),
+        wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[1].slow_duration, 0.5, 0.5, 60.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[1].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::FreezeGun, 3),
+        wl!("Score", "Score fuer Level 3", freezegun[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[2].cooldown, 0.05, 0.05, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", freezegun[2].magazine, 1.0, 1.0, 500.0),
+        wl!("Damage", "Schaden pro Treffer", freezegun[2].damage, 0.5, 0.5, 200.0),
+        wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[2].slow_factor, 0.05, 0.05, 0.99),
+        wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[2].slow_duration, 0.5, 0.5, 60.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[2].bullet_speed, 25.0, 50.0, 5000.0),
 
         // === Kreissaege ===
         Item::Category("Kreissaege"),
-        w!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw.cooldown, 0.1, 0.2, 30.0),
-        w!("Magazin", "Saegen pro Magazin", buzzsaw.magazine, 1.0, 1.0, 200.0),
-        w!("Reload", "Nachladezeit in Sekunden", buzzsaw.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", buzzsaw.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer (durchdringend)", buzzsaw.damage, 1.0, 1.0, 500.0),
-        w!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw.bullet_speed, 10.0, 30.0, 2000.0),
-        w!("Range", "Maximale Flugdistanz", buzzsaw.range, 50.0, 100.0, 5000.0),
-        w!("Pierce", "Gegner die durchdrungen werden", buzzsaw.pierce_count, 1.0, 1.0, 999.0),
-        w!("Score", "Score zum Freischalten", buzzsaw.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", buzzsaw.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", buzzsaw.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Buzzsaw, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Buzzsaw, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", buzzsaw[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Buzzsaw, 1),
+        wl!("Score", "Score zum Freischalten", buzzsaw[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw[0].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Saegen pro Magazin", buzzsaw[0].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", buzzsaw[0].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[0].bullet_speed, 10.0, 30.0, 2000.0),
+        wl!("Range", "Maximale Flugdistanz", buzzsaw[0].range, 50.0, 100.0, 5000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[0].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Buzzsaw, 2),
+        wl!("Score", "Score fuer Level 2", buzzsaw[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw[1].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Saegen pro Magazin", buzzsaw[1].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", buzzsaw[1].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[1].bullet_speed, 10.0, 30.0, 2000.0),
+        wl!("Range", "Maximale Flugdistanz", buzzsaw[1].range, 50.0, 100.0, 5000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[1].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Buzzsaw, 3),
+        wl!("Score", "Score fuer Level 3", buzzsaw[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw[2].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Saegen pro Magazin", buzzsaw[2].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Schaden pro Treffer", buzzsaw[2].damage, 1.0, 1.0, 500.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[2].bullet_speed, 10.0, 30.0, 2000.0),
+        wl!("Range", "Maximale Flugdistanz", buzzsaw[2].range, 50.0, 100.0, 5000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[2].pierce_count, 1.0, 1.0, 999.0),
 
         // === Tesla ===
         Item::Category("Tesla"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", tesla.cooldown, 0.05, 0.1, 10.0),
-        w!("Magazin", "Schuss pro Magazin", tesla.magazine, 1.0, 1.0, 300.0),
-        w!("Reload", "Nachladezeit in Sekunden", tesla.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", tesla.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden Haupttreffer", tesla.damage, 1.0, 1.0, 1000.0),
-        w!("Chains", "Anzahl Kettenblitz-Spruenge", tesla.chain_count, 1.0, 0.0, 50.0),
-        w!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla.chain_range, 10.0, 20.0, 2000.0),
-        w!("Proj-Speed", "Projektilgeschwindigkeit", tesla.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Score", "Score zum Freischalten", tesla.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", tesla.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", tesla.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Tesla, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Tesla, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", tesla[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Tesla, 1),
+        wl!("Score", "Score zum Freischalten", tesla[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[0].cooldown, 0.05, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", tesla[0].magazine, 1.0, 1.0, 300.0),
+        wl!("Damage", "Schaden Haupttreffer", tesla[0].damage, 1.0, 1.0, 1000.0),
+        wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[0].chain_count, 1.0, 0.0, 50.0),
+        wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[0].chain_range, 10.0, 20.0, 2000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[0].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Tesla, 2),
+        wl!("Score", "Score fuer Level 2", tesla[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[1].cooldown, 0.05, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", tesla[1].magazine, 1.0, 1.0, 300.0),
+        wl!("Damage", "Schaden Haupttreffer", tesla[1].damage, 1.0, 1.0, 1000.0),
+        wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[1].chain_count, 1.0, 0.0, 50.0),
+        wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[1].chain_range, 10.0, 20.0, 2000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[1].bullet_speed, 25.0, 50.0, 5000.0),
+        level_header(WeaponType::Tesla, 3),
+        wl!("Score", "Score fuer Level 3", tesla[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[2].cooldown, 0.05, 0.1, 10.0),
+        wl!("Magazin", "Schuss pro Magazin", tesla[2].magazine, 1.0, 1.0, 300.0),
+        wl!("Damage", "Schaden Haupttreffer", tesla[2].damage, 1.0, 1.0, 1000.0),
+        wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[2].chain_count, 1.0, 0.0, 50.0),
+        wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[2].chain_range, 10.0, 20.0, 2000.0),
+        wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[2].bullet_speed, 25.0, 50.0, 5000.0),
 
         // === Mine ===
         Item::Category("Mine"),
-        w!("Cooldown", "Sekunden zwischen Platzierungen", mine.cooldown, 0.1, 0.2, 30.0),
-        w!("Magazin", "Minen pro Magazin", mine.magazine, 1.0, 1.0, 200.0),
-        w!("Reload", "Nachladezeit in Sekunden", mine.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", mine.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Explosionsschaden", mine.damage, 5.0, 5.0, 5000.0),
-        w!("Trigger-R", "Ausloeseradius (Zombie-Naehe)", mine.trigger_radius, 5.0, 10.0, 500.0),
-        w!("Expl-Radius", "Explosionsradius", mine.explosion_radius_override, 5.0, 20.0, 1000.0),
-        w!("Score", "Score zum Freischalten", mine.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", mine.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", mine.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Mine, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Mine, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", mine[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Mine, 1),
+        wl!("Score", "Score zum Freischalten", mine[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Platzierungen", mine[0].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Minen pro Magazin", mine[0].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", mine[0].damage, 5.0, 5.0, 5000.0),
+        wl!("Trigger-R", "Ausloeseradius (Zombie-Naehe)", mine[0].trigger_radius, 5.0, 10.0, 500.0),
+        wl!("Expl-Radius", "Explosionsradius", mine[0].explosion_radius_override, 5.0, 20.0, 1000.0),
+        level_header(WeaponType::Mine, 2),
+        wl!("Score", "Score fuer Level 2", mine[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Platzierungen", mine[1].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Minen pro Magazin", mine[1].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", mine[1].damage, 5.0, 5.0, 5000.0),
+        wl!("Trigger-R", "Ausloeseradius (Zombie-Naehe)", mine[1].trigger_radius, 5.0, 10.0, 500.0),
+        wl!("Expl-Radius", "Explosionsradius", mine[1].explosion_radius_override, 5.0, 20.0, 1000.0),
+        level_header(WeaponType::Mine, 3),
+        wl!("Score", "Score fuer Level 3", mine[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Platzierungen", mine[2].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Minen pro Magazin", mine[2].magazine, 1.0, 1.0, 200.0),
+        wl!("Damage", "Explosionsschaden", mine[2].damage, 5.0, 5.0, 5000.0),
+        wl!("Trigger-R", "Ausloeseradius (Zombie-Naehe)", mine[2].trigger_radius, 5.0, 10.0, 500.0),
+        wl!("Expl-Radius", "Explosionsradius", mine[2].explosion_radius_override, 5.0, 20.0, 1000.0),
 
         // === Boomerang ===
         Item::Category("Boomerang"),
-        w!("Cooldown", "Sekunden zwischen Wuerfen", boomerang.cooldown, 0.1, 0.2, 30.0),
-        w!("Magazin", "Wuerfe vor Reload", boomerang.magazine, 1.0, 1.0, 100.0),
-        w!("Reload", "Nachladezeit in Sekunden", boomerang.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", boomerang.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer", boomerang.damage, 1.0, 1.0, 1000.0),
-        w!("Range", "Maximale Flugdistanz", boomerang.range, 25.0, 50.0, 5000.0),
-        w!("Proj-Speed", "Fluggeschwindigkeit", boomerang.bullet_speed, 25.0, 100.0, 3000.0),
-        w!("Score", "Score zum Freischalten", boomerang.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", boomerang.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", boomerang.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Boomerang, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Boomerang, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", boomerang[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Boomerang, 1),
+        wl!("Score", "Score zum Freischalten", boomerang[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", boomerang[0].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Wuerfe vor Reload", boomerang[0].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Schaden pro Treffer", boomerang[0].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Flugdistanz", boomerang[0].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[0].bullet_speed, 25.0, 100.0, 3000.0),
+        level_header(WeaponType::Boomerang, 2),
+        wl!("Score", "Score fuer Level 2", boomerang[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", boomerang[1].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Wuerfe vor Reload", boomerang[1].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Schaden pro Treffer", boomerang[1].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Flugdistanz", boomerang[1].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[1].bullet_speed, 25.0, 100.0, 3000.0),
+        level_header(WeaponType::Boomerang, 3),
+        wl!("Score", "Score fuer Level 3", boomerang[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Wuerfen", boomerang[2].cooldown, 0.1, 0.2, 30.0),
+        wl!("Magazin", "Wuerfe vor Reload", boomerang[2].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Schaden pro Treffer", boomerang[2].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Flugdistanz", boomerang[2].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[2].bullet_speed, 25.0, 100.0, 3000.0),
 
         // === Rakete ===
         Item::Category("Rakete"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", rocket.cooldown, 0.1, 0.3, 30.0),
-        w!("Magazin", "Raketen pro Magazin", rocket.magazine, 1.0, 1.0, 100.0),
-        w!("Reload", "Nachladezeit in Sekunden", rocket.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", rocket.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Explosionsschaden", rocket.damage, 5.0, 5.0, 5000.0),
-        w!("Range", "Maximale Flugdistanz", rocket.range, 25.0, 50.0, 5000.0),
-        w!("Proj-Speed", "Raketengeschwindigkeit", rocket.bullet_speed, 25.0, 50.0, 5000.0),
-        w!("Expl-Radius", "Explosionsradius", rocket.explosion_radius_override, 5.0, 20.0, 1000.0),
-        w!("Score", "Score zum Freischalten", rocket.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", rocket.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", rocket.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Rocket, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Rocket, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", rocket[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Rocket, 1),
+        wl!("Score", "Score zum Freischalten", rocket[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", rocket[0].cooldown, 0.1, 0.3, 30.0),
+        wl!("Magazin", "Raketen pro Magazin", rocket[0].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Explosionsschaden", rocket[0].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Flugdistanz", rocket[0].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Expl-Radius", "Explosionsradius", rocket[0].explosion_radius_override, 5.0, 20.0, 1000.0),
+        level_header(WeaponType::Rocket, 2),
+        wl!("Score", "Score fuer Level 2", rocket[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", rocket[1].cooldown, 0.1, 0.3, 30.0),
+        wl!("Magazin", "Raketen pro Magazin", rocket[1].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Explosionsschaden", rocket[1].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Flugdistanz", rocket[1].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Expl-Radius", "Explosionsradius", rocket[1].explosion_radius_override, 5.0, 20.0, 1000.0),
+        level_header(WeaponType::Rocket, 3),
+        wl!("Score", "Score fuer Level 3", rocket[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", rocket[2].cooldown, 0.1, 0.3, 30.0),
+        wl!("Magazin", "Raketen pro Magazin", rocket[2].magazine, 1.0, 1.0, 100.0),
+        wl!("Damage", "Explosionsschaden", rocket[2].damage, 5.0, 5.0, 5000.0),
+        wl!("Range", "Maximale Flugdistanz", rocket[2].range, 25.0, 50.0, 5000.0),
+        wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Expl-Radius", "Explosionsradius", rocket[2].explosion_radius_override, 5.0, 20.0, 1000.0),
 
         // === Laser ===
         Item::Category("Laser"),
-        w!("Cooldown", "Sekunden zwischen Schuessen", laser.cooldown, 0.01, 0.01, 5.0),
-        w!("Magazin", "Schuss pro Batterie", laser.magazine, 5.0, 10.0, 2000.0),
-        w!("Reload", "Nachladezeit in Sekunden", laser.reload_time, 0.1, 0.1, 30.0),
-        w!("Max-Magazine", "Anzahl Magazine (0=unbegrenzt)", laser.max_magazines, 1.0, 0.0, 999.0),
-        w!("Damage", "Schaden pro Treffer", laser.damage, 0.5, 0.5, 500.0),
-        w!("Range", "Maximale Reichweite", laser.range, 50.0, 100.0, 10000.0),
-        w!("Proj-Speed", "Lasergeschwindigkeit", laser.bullet_speed, 100.0, 500.0, 10000.0),
-        w!("Pierce", "Gegner die durchdrungen werden", laser.pierce_count, 1.0, 1.0, 999.0),
-        w!("Score", "Score zum Freischalten", laser.score_required, 1.0, 0.0, 99999.0),
-        w!("Lv2 Score", "Score fuer Level 2", laser.score_level_2, 1.0, 0.0, 99999.0),
-        w!("Lv3 Score", "Score fuer Level 3", laser.score_level_3, 1.0, 0.0, 99999.0),
-        Item::Value(Entry { label: "Lv2 Dmg", help: "Berechneter Schaden Lv2", get: |s| s.weapon_at_level(crate::components::WeaponType::Laser, 2).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
-        Item::Value(Entry { label: "Lv3 Dmg", help: "Berechneter Schaden Lv3", get: |s| s.weapon_at_level(crate::components::WeaponType::Laser, 3).damage, set: |_,_| {}, step: 0.0, min: 0.0, max: 999.0, display: DisplayMode::ReadOnly }),
+        wl!("Reload", "Nachladezeit in Sekunden", laser[0].reload_time, 0.1, 0.1, 30.0),
+        level_header(WeaponType::Laser, 1),
+        wl!("Score", "Score zum Freischalten", laser[0].score_required, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", laser[0].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Schuss pro Batterie", laser[0].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Treffer", laser[0].damage, 0.5, 0.5, 500.0),
+        wl!("Range", "Maximale Reichweite", laser[0].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Lasergeschwindigkeit", laser[0].bullet_speed, 100.0, 500.0, 10000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", laser[0].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Laser, 2),
+        wl!("Score", "Score fuer Level 2", laser[0].score_level_2, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", laser[1].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Schuss pro Batterie", laser[1].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Treffer", laser[1].damage, 0.5, 0.5, 500.0),
+        wl!("Range", "Maximale Reichweite", laser[1].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Lasergeschwindigkeit", laser[1].bullet_speed, 100.0, 500.0, 10000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", laser[1].pierce_count, 1.0, 1.0, 999.0),
+        level_header(WeaponType::Laser, 3),
+        wl!("Score", "Score fuer Level 3", laser[0].score_level_3, 1.0, 0.0, 99999.0),
+        wl!("Cooldown", "Sekunden zwischen Schuessen", laser[2].cooldown, 0.01, 0.01, 5.0),
+        wl!("Magazin", "Schuss pro Batterie", laser[2].magazine, 5.0, 10.0, 2000.0),
+        wl!("Damage", "Schaden pro Treffer", laser[2].damage, 0.5, 0.5, 500.0),
+        wl!("Range", "Maximale Reichweite", laser[2].range, 50.0, 100.0, 10000.0),
+        wl!("Proj-Speed", "Lasergeschwindigkeit", laser[2].bullet_speed, 100.0, 500.0, 10000.0),
+        wl!("Pierce", "Gegner die durchdrungen werden", laser[2].pierce_count, 1.0, 1.0, 999.0),
     ]
 }
 
@@ -406,7 +558,7 @@ fn visible_indices(items: &[Item], open_cat: usize) -> Vec<usize> {
     if let Some((start_idx, _)) = cats.get(open_cat) {
         let end = cats.get(open_cat + 1).map(|(i, _)| *i).unwrap_or(items.len());
         ((*start_idx + 1)..end)
-            .filter(|i| matches!(items[*i], Item::Value(_)))
+            .filter(|i| matches!(items[*i], Item::Value(_) | Item::SubHeader(_)))
             .collect()
     } else {
         Vec::new()
@@ -514,8 +666,11 @@ pub fn setup_pause_ui(
                         flex_direction: FlexDirection::Column,
                         row_gap: Val::Px(2.0),
                         min_height: Val::Px(300.0),
+                        max_height: Val::Px(500.0),
+                        overflow: Overflow::scroll_y(),
                         ..default()
                     },
+                    ScrollPosition::default(),
                     SettingsListContainer,
                 ))
                 .with_children(|list| {
@@ -571,45 +726,64 @@ fn spawn_settings_rows(
     let visible = visible_indices(items, ui_state.open_category);
 
     for (row_idx, &item_idx) in visible.iter().enumerate() {
-        if let Item::Value(entry) = &items[item_idx] {
-            let is_selected = row_idx == ui_state.selected;
-            let bg = if is_selected { ROW_SELECTED } else { ROW_NORMAL };
-            let val = (entry.get)(settings);
-            let val_str = format_value(val, entry.display);
-            let is_readonly = entry.display == DisplayMode::ReadOnly;
-
-            let label_color = if is_readonly {
-                Color::srgb(0.5, 0.5, 0.5)
-            } else if is_selected {
-                Color::srgb(0.0, 1.0, 0.0)
-            } else {
-                Color::srgb(0.8, 0.8, 0.8)
-            };
-
-            parent
-                .spawn((
+        match &items[item_idx] {
+            Item::SubHeader(text) => {
+                parent.spawn((
                     Node {
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
-                        padding: UiRect::axes(Val::Px(6.0), Val::Px(2.0)),
+                        padding: UiRect::new(Val::Px(4.0), Val::Px(4.0), Val::Px(6.0), Val::Px(2.0)),
                         ..default()
                     },
-                    BackgroundColor(bg),
                     SettingsRowMarker(row_idx),
                 ))
                 .with_children(|row| {
                     row.spawn((
-                        Text::new(entry.label),
-                        TextFont { font_size: 13.0, ..default() },
-                        TextColor(label_color),
-                    ));
-                    row.spawn((
-                        Text::new(val_str),
-                        TextFont { font_size: 13.0, ..default() },
-                        TextColor(if is_selected { Color::srgb(1.0, 1.0, 0.0) } else { Color::srgb(0.7, 0.7, 0.7) }),
-                        SettingsValueText(row_idx),
+                        Text::new(text.clone()),
+                        TextFont { font_size: 11.0, ..default() },
+                        TextColor(Color::srgb(1.0, 0.8, 0.2)),
                     ));
                 });
+            }
+            Item::Value(entry) => {
+                let is_selected = row_idx == ui_state.selected;
+                let bg = if is_selected { ROW_SELECTED } else { ROW_NORMAL };
+                let val = (entry.get)(settings);
+                let val_str = format_value(val, entry.display);
+                let is_readonly = entry.display == DisplayMode::ReadOnly;
+
+                let label_color = if is_readonly {
+                    Color::srgb(0.5, 0.5, 0.5)
+                } else if is_selected {
+                    Color::srgb(0.0, 1.0, 0.0)
+                } else {
+                    Color::srgb(0.8, 0.8, 0.8)
+                };
+
+                parent
+                    .spawn((
+                        Node {
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::SpaceBetween,
+                            padding: UiRect::axes(Val::Px(6.0), Val::Px(2.0)),
+                            ..default()
+                        },
+                        BackgroundColor(bg),
+                        SettingsRowMarker(row_idx),
+                    ))
+                    .with_children(|row| {
+                        row.spawn((
+                            Text::new(entry.label),
+                            TextFont { font_size: 13.0, ..default() },
+                            TextColor(label_color),
+                        ));
+                        row.spawn((
+                            Text::new(val_str),
+                            TextFont { font_size: 13.0, ..default() },
+                            TextColor(if is_selected { Color::srgb(1.0, 1.0, 0.0) } else { Color::srgb(0.7, 0.7, 0.7) }),
+                            SettingsValueText(row_idx),
+                        ));
+                    });
+            }
+            _ => {}
         }
     }
 }
@@ -642,6 +816,7 @@ pub fn settings_input(
     mut ui_state: ResMut<SettingsUiState>,
     mut settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut list_scroll: Query<(&mut ScrollPosition, &ComputedNode), With<SettingsListContainer>>,
 ) {
     ui_state.repeat_timer.tick(time.delta());
     let items = all_items();
@@ -649,12 +824,42 @@ pub fn settings_input(
     let count = visible.len();
     if count == 0 { return; }
 
-    // Navigation (ArrowUp/W, ArrowDown/S)
+    // Navigation (ArrowUp/W, ArrowDown/S) - SubHeaders ueberspringen
     if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::KeyW) {
-        ui_state.selected = (ui_state.selected + count - 1) % count;
+        let mut next = (ui_state.selected + count - 1) % count;
+        for _ in 0..count {
+            if matches!(items[visible[next]], Item::SubHeader(_)) {
+                next = (next + count - 1) % count;
+            } else { break; }
+        }
+        ui_state.selected = next;
     }
     if keyboard.just_pressed(KeyCode::ArrowDown) || keyboard.just_pressed(KeyCode::KeyS) {
-        ui_state.selected = (ui_state.selected + 1) % count;
+        let mut next = (ui_state.selected + 1) % count;
+        for _ in 0..count {
+            if matches!(items[visible[next]], Item::SubHeader(_)) {
+                next = (next + 1) % count;
+            } else { break; }
+        }
+        ui_state.selected = next;
+    }
+
+    // Auto-Scroll zur selektierten Zeile (proportional basierend auf ComputedNode)
+    if let Ok((mut scroll, computed)) = list_scroll.single_mut() {
+        let content_h = computed.content_size().y * computed.inverse_scale_factor();
+        let view_h = computed.size().y * computed.inverse_scale_factor();
+        let max_scroll = (content_h - view_h).max(0.0);
+        let sel = ui_state.selected.min(count.saturating_sub(1));
+        // Proportionale Position: sel / count * content_h
+        let frac = if count > 0 { sel as f32 / count as f32 } else { 0.0 };
+        let row_h_approx = if count > 0 { content_h / count as f32 } else { 20.0 };
+        let target_top = frac * content_h;
+        let target_bottom = target_top + row_h_approx;
+        if target_top < scroll.0.y {
+            scroll.0.y = target_top.max(0.0);
+        } else if target_bottom > scroll.0.y + view_h {
+            scroll.0.y = (target_bottom - view_h).min(max_scroll);
+        }
     }
 
     // Kategorie-Wechsel (Tab, Q/E)
@@ -750,7 +955,8 @@ pub fn settings_update_ui(
     mut row_bgs: Query<(&mut BackgroundColor, &SettingsRowMarker), Without<SettingsValueText>>,
     mut help_text: Query<&mut Text, (With<SettingsHelpText>, Without<SettingsValueText>, Without<SettingsRowMarker>, Without<FeedbackText>)>,
     mut feedback_query: Query<(&mut Text, &mut TextColor), (With<FeedbackText>, Without<SettingsHelpText>, Without<SettingsValueText>, Without<SettingsRowMarker>)>,
-    list_container: Query<Entity, With<SettingsListContainer>>,
+    mut list_container: Query<(Entity, &mut ScrollPosition, &ComputedNode), With<SettingsListContainer>>,
+    mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     mut tab_query: Query<(&mut BackgroundColor, &Interaction, &CategoryTab), (Without<SettingsRowMarker>, Without<SettingsValueText>)>,
     root_query: Query<Entity, With<PauseUiRoot>>,
 ) {
@@ -777,7 +983,7 @@ pub fn settings_update_ui(
     // Rebuild bei Kategorie-Wechsel
     if ui_state.needs_rebuild {
         ui_state.needs_rebuild = false;
-        if let Ok(container) = list_container.single() {
+        if let Ok((container, _, _)) = list_container.single() {
             // Container despawnen und neu spawnen geht nicht einfach,
             // daher despawnen wir den ganzen Root und triggern setup neu
             // Einfacher: despawn container, re-create
@@ -855,8 +1061,11 @@ pub fn settings_update_ui(
                             flex_direction: FlexDirection::Column,
                             row_gap: Val::Px(2.0),
                             min_height: Val::Px(300.0),
+                            max_height: Val::Px(500.0),
+                            overflow: Overflow::scroll_y(),
                             ..default()
                         },
+                        ScrollPosition::default(),
                         SettingsListContainer,
                     ))
                     .with_children(|list| {
@@ -928,6 +1137,14 @@ pub fn settings_update_ui(
     for (mut bg, row) in row_bgs.iter_mut() {
         let is_selected = row.0 == sel;
         *bg = BackgroundColor(if is_selected { ROW_SELECTED } else { ROW_NORMAL });
+    }
+
+    // Mouse-Wheel Scrolling
+    if let Ok((_, mut scroll, computed)) = list_container.single_mut() {
+        let max_scroll = ((computed.content_size().y - computed.size().y) * computed.inverse_scale_factor()).max(0.0);
+        for ev in mouse_wheel.read() {
+            scroll.0.y = (scroll.0.y - ev.y * 30.0).clamp(0.0, max_scroll);
+        }
     }
 
     // Help Text
