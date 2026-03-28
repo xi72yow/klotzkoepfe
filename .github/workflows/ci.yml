@@ -21,47 +21,78 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  build-image:
     runs-on: ubuntu-latest
-    container:
-      image: debian:12
     steps:
-      - name: Install base tools
-        run: apt-get update && apt-get install -y git curl build-essential pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev dpkg-dev apt-utils
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Fix git ownership
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          load: true
+          tags: build-image
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save container image
+        run: docker save build-image | zstd -T0 -o image.tar.zst
+
+      - name: Upload container image
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-image
+          path: image.tar.zst
+          retention-days: 1
+
+  test:
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download container image
+        uses: actions/download-artifact@v4
+        with:
+          name: build-image
+
+      - name: Load container image
+        run: zstd -d image.tar.zst -o image.tar && docker load < image.tar
+
+      - name: Run tests in container
+        run: docker run --rm build-image cargo test --release
+
+  audit:
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download container image
+        uses: actions/download-artifact@v4
+        with:
+          name: build-image
+
+      - name: Load container image
+        run: zstd -d image.tar.zst -o image.tar && docker load < image.tar
+
+      - name: Run cargo audit in container
+        run: docker run --rm build-image cargo audit
+
+  release:
+    needs: [test, audit]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Setup Rust
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-
-      - name: Cache cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: debian12-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: debian12-cargo-
-
-      - name: Build
-        run: cargo build --release
-
-      - name: Run tests
-        run: cargo test --release
-
-      # --- Release steps (only on workflow_dispatch) ---
-
       - name: Determine version
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -90,43 +121,48 @@ jobs:
           echo "Release tag: ${TAG}"
 
       - name: Generate changelog
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: ./scripts/generate-changelog.sh "${{ steps.version.outputs.revision }}"
 
-      - name: Install cargo-deb
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
-        run: cargo install cargo-deb
+      - name: Download container image
+        uses: actions/download-artifact@v4
+        with:
+          name: build-image
 
-      - name: Build .deb
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
-        run: cargo deb --no-build --deb-revision "${{ steps.version.outputs.revision }}"
+      - name: Load container image
+        run: zstd -d image.tar.zst -o image.tar && docker load < image.tar
+
+      - name: Build .deb with changelog
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            -v "$(pwd)/debian:/build/debian" \
+            -v "$(pwd)/dist:/output" \
+            build-image \
+            sh -c "cargo deb --no-build --deb-revision ${{ steps.version.outputs.revision }} && cp target/debian/*.deb /output/"
 
       - name: Test .deb package
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: |
-          DEB=$(ls target/debian/*.deb)
+          DEB=$(ls dist/*.deb | head -1)
           echo "=== Package contents ==="
           dpkg-deb -c "$DEB"
 
-          echo "=== Test install ==="
-          dpkg -i "$DEB"
-
-          echo "=== Verify binary ==="
-          klotzkoepfe --version || true
+      - name: Prepare packages directory
+        run: mkdir -p packages && cp dist/*.deb packages/
 
       - name: Import GPG key
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
+        run: echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
 
       - name: Update APT repository
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
-        run: ./scripts/update-repo.sh
+        run: |
+          sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils
+          # update-repo.sh erwartet .deb in target/debian/
+          mkdir -p target/debian
+          cp dist/*.deb target/debian/
+          ./scripts/update-repo.sh
 
       - name: Create tag
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -134,22 +170,20 @@ jobs:
           git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Create Release
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          files: target/debian/*.deb
+          files: dist/*.deb
           generate_release_notes: true
 
       - name: Upload repo artifact
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
         uses: actions/upload-pages-artifact@v4
         with:
           path: repo/
 
   deploy-pages:
-    needs: build
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
+    needs: release
+    if: needs.release.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -157,4 +191,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -1,4 +1,5 @@
 /target
+/dist
 *.md
 savespace-settings.json
 /klotzkoepfe
