@@ -1,5 +1,5 @@
 # --- base: Rust + System-Dependencies + Cargo-Tools ---
-FROM docker.io/library/rust:1.89-slim-bookworm AS base
+FROM docker.io/library/rust:1.94-slim-bookworm AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \

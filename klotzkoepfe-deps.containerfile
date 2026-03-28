@@ -1,4 +1,4 @@
-FROM rust:1.89-bookworm
+FROM rust:1.94-bookworm
 
 RUN apt-get update && apt-get install -y \
     pkg-config \
