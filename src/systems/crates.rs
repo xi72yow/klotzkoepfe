@@ -11,9 +11,11 @@ const AIRDROP_SPEED_MIN: f32 = 120.0;
 const AIRDROP_SPEED_MAX: f32 = 280.0;
 const AIRDROP_DIST_MIN: f32 = 350.0;
 const AIRDROP_DIST_MAX: f32 = 650.0;
-const SMOKE_INTERVAL: f32 = 0.08;
-const SMOKE_LIFETIME: f32 = 1.0;
-const FLARE_SIZE: f32 = 6.0;
+const SMOKE_INTERVAL: f32 = 0.06;
+const SMOKE_LIFETIME: f32 = 1.2;
+const FLARE_SIZE: f32 = 8.0;
+const SPARK_INTERVAL: f32 = 0.04;
+const SPARK_LIFETIME: f32 = 0.4;
 
 /// Generate a random position inside the room with some margin from walls
 fn random_room_position() -> Vec2 {
@@ -210,7 +212,7 @@ pub fn base_crate_respawn(
 fn spawn_flare(commands: &mut Commands, pos: Vec2, settings: &GameSettings) {
     commands.spawn((
         Sprite {
-            color: Color::srgb(1.0, 0.2, 0.0),
+            color: Color::srgb(1.0, 0.3, 0.0),
             custom_size: Some(Vec2::splat(FLARE_SIZE)),
             ..default()
         },
@@ -218,15 +220,15 @@ fn spawn_flare(commands: &mut Commands, pos: Vec2, settings: &GameSettings) {
         Flare {
             burn_timer: Timer::from_seconds(settings.flare_duration, TimerMode::Once),
             smoke_timer: Timer::from_seconds(SMOKE_INTERVAL, TimerMode::Repeating),
+            spark_timer: Timer::from_seconds(SPARK_INTERVAL, TimerMode::Repeating),
         },
     ));
 }
 
-/// Flare system: smoke particles, trigger airdrop
+/// Flare system: big colored smoke + sparkles, trigger airdrop
 pub fn flare_system(
     mut commands: Commands,
     time: Res<Time>,
-    settings: Res<GameSettings>,
     mut flare_query: Query<(Entity, &mut Flare, &Transform)>,
 ) {
     let mut rng = rand::rng();
@@ -234,15 +236,20 @@ pub fn flare_system(
     for (entity, mut flare, transform) in flare_query.iter_mut() {
         flare.burn_timer.tick(time.delta());
         flare.smoke_timer.tick(time.delta());
+        flare.spark_timer.tick(time.delta());
 
-        // Spawn smoke particles
+        let pos = transform.translation.truncate();
+
+        // Grosser orangeroter Rauch
         if flare.smoke_timer.just_finished() {
-            let pos = transform.translation.truncate();
-            let x_offset = rng.random_range(-3.0..3.0);
+            let x_offset = rng.random_range(-5.0..5.0);
+            let r = rng.random_range(0.7..1.0);
+            let g = rng.random_range(0.15..0.4);
+            let smoke_size = rng.random_range(8.0..14.0);
             commands.spawn((
                 Sprite {
-                    color: Color::srgba(0.5, 0.5, 0.5, 0.5),
-                    custom_size: Some(Vec2::splat(4.0)),
+                    color: Color::srgba(r, g, 0.0, 0.7),
+                    custom_size: Some(Vec2::splat(smoke_size)),
                     ..default()
                 },
                 Transform::from_xyz(pos.x + x_offset, pos.y, 5.5),
@@ -250,17 +257,38 @@ pub fn flare_system(
                     lifetime: Timer::from_seconds(SMOKE_LIFETIME, TimerMode::Once),
                 },
                 Velocity(Vec2::new(
-                    rng.random_range(-5.0..5.0),
-                    rng.random_range(25.0..45.0),
+                    rng.random_range(-10.0..10.0),
+                    rng.random_range(30.0..55.0),
                 )),
+            ));
+        }
+
+        // Funken-Partikel
+        if flare.spark_timer.just_finished() {
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            let speed = rng.random_range(40.0..90.0);
+            let spark_color = if rng.random_bool(0.5_f64) {
+                Color::srgb(1.0, 0.9, 0.3) // gelb
+            } else {
+                Color::srgb(1.0, 0.5, 0.0) // orange
+            };
+            commands.spawn((
+                Sprite {
+                    color: spark_color,
+                    custom_size: Some(Vec2::splat(2.0)),
+                    ..default()
+                },
+                Transform::from_xyz(pos.x, pos.y, 6.1),
+                SmokeParticle {
+                    lifetime: Timer::from_seconds(SPARK_LIFETIME, TimerMode::Once),
+                },
+                Velocity(Vec2::new(angle.cos() * speed, angle.sin() * speed)),
             ));
         }
 
         // When burn timer finishes, spawn airdrop (flare stays until landing)
         if flare.burn_timer.is_finished() {
-            let pos = transform.translation.truncate();
             spawn_airdrop(&mut commands, pos, entity);
-            // Stop smoke by removing the Flare component (entity stays as visual marker)
             commands.entity(entity).remove::<Flare>();
         }
     }

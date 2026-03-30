@@ -104,7 +104,7 @@ fn all_items() -> Vec<Item> {
         Item::Category("Gamemaster"),
         Item::Value(Entry { label: "Level", help: "Alle Waffen auf gewaehltes Level", get: |s| s.gamemaster_level as f32, set: |s,v| s.gamemaster_level = v as u32, step: 1.0, min: 0.0, max: 3.0, display: DisplayMode::Carousel(&["Aus", "Lv1", "Lv2", "Lv3"]) }),
         Item::Value(Entry { label: "Game Speed", help: "Spielgeschwindigkeit (0.1=Zeitlupe, 2=doppelt)", get: |s| s.gm_game_speed, set: |s,v| s.gm_game_speed = v, step: 0.05, min: 0.1, max: 4.0, display: DisplayMode::Float }),
-        Item::Value(Entry { label: "Startwelle", help: "Aendert die aktuelle Welle sofort (0=normal)", get: |s| s.gm_start_wave as f32, set: |s,v| { s.gm_start_wave = v as u32; s.gm_wave_dirty = true; }, step: 1.0, min: 0.0, max: 100.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Startwelle", help: "Aendert die aktuelle Welle sofort und nach Neustart (0=normal)", get: |s| s.gm_start_wave as f32, set: |s,v| { s.gm_start_wave = v as u32; s.gm_wave_dirty = true; }, step: 1.0, min: 0.0, max: 100.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Startwaffe", help: "Waffe bei Spielstart", get: |s| s.gm_start_weapon as f32, set: |s,v| { s.gm_start_weapon = v as u32; s.gm_weapon_dirty = true; }, step: 1.0, min: 0.0, max: 12.0, display: DisplayMode::Carousel(&["Pistole", "Shotgun", "Uzi", "Flammenwerfer", "Granate", "Railgun", "Freeze Gun", "Kreissaege", "Tesla", "Mine", "Boomerang", "Rakete", "Laser"]) }),
 
         // === Spieler ===
@@ -280,6 +280,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Partikel", flamethrower[0].damage, 0.5, 0.5, 200.0),
         wl!("Range", "Reichweite der Flammen", flamethrower[0].range, 10.0, 50.0, 2000.0),
         wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[0].bullet_speed, 10.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel der Flammen", flamethrower[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Flamethrower, 2),
         wl!("Score", "Score fuer Level 2", flamethrower[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower[1].cooldown, 0.01, 0.01, 5.0),
@@ -287,6 +288,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Partikel", flamethrower[1].damage, 0.5, 0.5, 200.0),
         wl!("Range", "Reichweite der Flammen", flamethrower[1].range, 10.0, 50.0, 2000.0),
         wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[1].bullet_speed, 10.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel der Flammen", flamethrower[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Flamethrower, 3),
         wl!("Score", "Score fuer Level 3", flamethrower[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Flammen-Partikeln", flamethrower[2].cooldown, 0.01, 0.01, 5.0),
@@ -294,6 +296,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Partikel", flamethrower[2].damage, 0.5, 0.5, 200.0),
         wl!("Range", "Reichweite der Flammen", flamethrower[2].range, 10.0, 50.0, 2000.0),
         wl!("Proj-Speed", "Flammengeschwindigkeit", flamethrower[2].bullet_speed, 10.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel der Flammen", flamethrower[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Granate ===
         Item::Category("Granate"),
@@ -305,6 +308,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Explosionsschaden", grenade[0].damage, 5.0, 5.0, 5000.0),
         wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[0].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", grenade[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Grenade, 2),
         wl!("Score", "Score fuer Level 2", grenade[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", grenade[1].cooldown, 0.1, 0.2, 30.0),
@@ -312,6 +316,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Explosionsschaden", grenade[1].damage, 5.0, 5.0, 5000.0),
         wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[1].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", grenade[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Grenade, 3),
         wl!("Score", "Score fuer Level 3", grenade[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", grenade[2].cooldown, 0.1, 0.2, 30.0),
@@ -319,6 +324,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Explosionsschaden", grenade[2].damage, 5.0, 5.0, 5000.0),
         wl!("Range", "Wurfweite (beeinflusst Zuender)", grenade[2].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Wurfgeschwindigkeit", grenade[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", grenade[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Railgun ===
         Item::Category("Railgun"),
@@ -362,6 +368,7 @@ fn all_items() -> Vec<Item> {
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[0].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[0].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", freezegun[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::FreezeGun, 2),
         wl!("Score", "Score fuer Level 2", freezegun[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[1].cooldown, 0.05, 0.05, 10.0),
@@ -370,6 +377,7 @@ fn all_items() -> Vec<Item> {
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[1].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[1].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", freezegun[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::FreezeGun, 3),
         wl!("Score", "Score fuer Level 3", freezegun[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[2].cooldown, 0.05, 0.05, 10.0),
@@ -378,6 +386,7 @@ fn all_items() -> Vec<Item> {
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[2].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[2].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", freezegun[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Kreissaege ===
         Item::Category("Kreissaege"),
@@ -390,6 +399,7 @@ fn all_items() -> Vec<Item> {
         wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[0].bullet_speed, 10.0, 30.0, 2000.0),
         wl!("Range", "Maximale Flugdistanz", buzzsaw[0].range, 50.0, 100.0, 5000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[0].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", buzzsaw[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Buzzsaw, 2),
         wl!("Score", "Score fuer Level 2", buzzsaw[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw[1].cooldown, 0.1, 0.2, 30.0),
@@ -398,6 +408,7 @@ fn all_items() -> Vec<Item> {
         wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[1].bullet_speed, 10.0, 30.0, 2000.0),
         wl!("Range", "Maximale Flugdistanz", buzzsaw[1].range, 50.0, 100.0, 5000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[1].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", buzzsaw[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Buzzsaw, 3),
         wl!("Score", "Score fuer Level 3", buzzsaw[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", buzzsaw[2].cooldown, 0.1, 0.2, 30.0),
@@ -406,6 +417,7 @@ fn all_items() -> Vec<Item> {
         wl!("Proj-Speed", "Fluggeschwindigkeit der Saege", buzzsaw[2].bullet_speed, 10.0, 30.0, 2000.0),
         wl!("Range", "Maximale Flugdistanz", buzzsaw[2].range, 50.0, 100.0, 5000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", buzzsaw[2].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", buzzsaw[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Tesla ===
         Item::Category("Tesla"),
@@ -418,6 +430,7 @@ fn all_items() -> Vec<Item> {
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[0].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[0].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[0].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", tesla[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Tesla, 2),
         wl!("Score", "Score fuer Level 2", tesla[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[1].cooldown, 0.05, 0.1, 10.0),
@@ -426,6 +439,7 @@ fn all_items() -> Vec<Item> {
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[1].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[1].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[1].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", tesla[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Tesla, 3),
         wl!("Score", "Score fuer Level 3", tesla[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[2].cooldown, 0.05, 0.1, 10.0),
@@ -434,6 +448,7 @@ fn all_items() -> Vec<Item> {
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[2].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[2].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[2].bullet_speed, 25.0, 50.0, 5000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", tesla[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Mine ===
         Item::Category("Mine"),
@@ -470,6 +485,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Treffer", boomerang[0].damage, 1.0, 1.0, 1000.0),
         wl!("Range", "Maximale Flugdistanz", boomerang[0].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[0].bullet_speed, 25.0, 100.0, 3000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", boomerang[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Boomerang, 2),
         wl!("Score", "Score fuer Level 2", boomerang[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", boomerang[1].cooldown, 0.1, 0.2, 30.0),
@@ -477,6 +493,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Treffer", boomerang[1].damage, 1.0, 1.0, 1000.0),
         wl!("Range", "Maximale Flugdistanz", boomerang[1].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[1].bullet_speed, 25.0, 100.0, 3000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", boomerang[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Boomerang, 3),
         wl!("Score", "Score fuer Level 3", boomerang[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Wuerfen", boomerang[2].cooldown, 0.1, 0.2, 30.0),
@@ -484,6 +501,7 @@ fn all_items() -> Vec<Item> {
         wl!("Damage", "Schaden pro Treffer", boomerang[2].damage, 1.0, 1.0, 1000.0),
         wl!("Range", "Maximale Flugdistanz", boomerang[2].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Fluggeschwindigkeit", boomerang[2].bullet_speed, 25.0, 100.0, 3000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", boomerang[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Rakete ===
         Item::Category("Rakete"),
@@ -496,6 +514,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Flugdistanz", rocket[0].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[0].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Expl-Radius", "Explosionsradius", rocket[0].explosion_radius_override, 5.0, 20.0, 1000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", rocket[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Rocket, 2),
         wl!("Score", "Score fuer Level 2", rocket[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", rocket[1].cooldown, 0.1, 0.3, 30.0),
@@ -504,6 +523,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Flugdistanz", rocket[1].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[1].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Expl-Radius", "Explosionsradius", rocket[1].explosion_radius_override, 5.0, 20.0, 1000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", rocket[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Rocket, 3),
         wl!("Score", "Score fuer Level 3", rocket[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", rocket[2].cooldown, 0.1, 0.3, 30.0),
@@ -512,6 +532,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Flugdistanz", rocket[2].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Raketengeschwindigkeit", rocket[2].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Expl-Radius", "Explosionsradius", rocket[2].explosion_radius_override, 5.0, 20.0, 1000.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", rocket[2].spread_angle, 0.01, 0.0, 3.14),
 
         // === Laser ===
         Item::Category("Laser"),
@@ -524,6 +545,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Reichweite", laser[0].range, 50.0, 100.0, 10000.0),
         wl!("Proj-Speed", "Lasergeschwindigkeit", laser[0].bullet_speed, 100.0, 500.0, 10000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", laser[0].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", laser[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Laser, 2),
         wl!("Score", "Score fuer Level 2", laser[0].score_level_2, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", laser[1].cooldown, 0.01, 0.01, 5.0),
@@ -532,6 +554,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Reichweite", laser[1].range, 50.0, 100.0, 10000.0),
         wl!("Proj-Speed", "Lasergeschwindigkeit", laser[1].bullet_speed, 100.0, 500.0, 10000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", laser[1].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", laser[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Laser, 3),
         wl!("Score", "Score fuer Level 3", laser[0].score_level_3, 1.0, 0.0, 99999.0),
         wl!("Cooldown", "Sekunden zwischen Schuessen", laser[2].cooldown, 0.01, 0.01, 5.0),
@@ -540,6 +563,7 @@ fn all_items() -> Vec<Item> {
         wl!("Range", "Maximale Reichweite", laser[2].range, 50.0, 100.0, 10000.0),
         wl!("Proj-Speed", "Lasergeschwindigkeit", laser[2].bullet_speed, 100.0, 500.0, 10000.0),
         wl!("Pierce", "Gegner die durchdrungen werden", laser[2].pierce_count, 1.0, 1.0, 999.0),
+        wl!("Spread", "Streuwinkel (0=exakt)", laser[2].spread_angle, 0.01, 0.0, 3.14),
     ]
 }
 

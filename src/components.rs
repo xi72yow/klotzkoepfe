@@ -577,6 +577,7 @@ pub struct BaseCrateSpawner {
 pub struct Flare {
     pub burn_timer: Timer,
     pub smoke_timer: Timer,
+    pub spark_timer: Timer,
 }
 
 #[derive(Component)]

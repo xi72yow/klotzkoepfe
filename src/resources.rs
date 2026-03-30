@@ -399,7 +399,7 @@ fn default_base_crate_respawn() -> f32 { 30.0 }
 fn default_flare_duration() -> f32 { 5.0 }
 fn default_max_magazines() -> u32 { 999 }
 fn default_big_zombie_hp() -> f32 { 100.0 }
-fn default_big_zombie_speed() -> f32 { 50.0 }
+fn default_big_zombie_speed() -> f32 { 10.0 }
 fn default_big_zombie_damage() -> f32 { 25.0 }
 fn default_big_zombie_scale() -> f32 { 1.8 }
 fn default_big_zombie_spawn_chance() -> f32 { 0.15 }
@@ -432,7 +432,7 @@ fn base_laser() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.03, magazine: 60, reload_time: 3.0, range: 600.0,
         damage: 4.0, bullet_speed: 1800.0, score_required: 15000,
-        pierce_count: 999, max_magazines: 3,
+        spread_angle: 0.02, pierce_count: 999, max_magazines: 3,
         score_level_2: 30000, score_level_3: 50000,
         ..WeaponSettings::empty()
     }
@@ -459,7 +459,7 @@ fn base_tesla() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.5, magazine: 8, reload_time: 2.0, range: 300.0,
         damage: 15.0, bullet_speed: 500.0, score_required: 6000,
-        chain_count: 3, chain_range: 80.0, max_magazines: 5,
+        spread_angle: 0.04, chain_count: 3, chain_range: 80.0, max_magazines: 5,
         score_level_2: 14000, score_level_3: 28000,
         ..WeaponSettings::empty()
     }
@@ -468,7 +468,7 @@ fn base_buzzsaw() -> WeaponSettings {
     WeaponSettings {
         cooldown: 1.2, magazine: 4, reload_time: 2.5, range: 500.0,
         damage: 12.0, bullet_speed: 100.0, score_required: 3000,
-        pierce_count: 999, max_magazines: 4,
+        spread_angle: 0.05, pierce_count: 999, max_magazines: 4,
         score_level_2: 8000, score_level_3: 20000,
         ..WeaponSettings::empty()
     }
@@ -477,7 +477,7 @@ fn base_rocket() -> WeaponSettings {
     WeaponSettings {
         cooldown: 1.5, magazine: 2, reload_time: 3.0, range: 400.0,
         damage: 80.0, bullet_speed: 450.0, score_required: 10000,
-        explosion_radius_override: 120.0, max_magazines: 3,
+        spread_angle: 0.03, explosion_radius_override: 120.0, max_magazines: 3,
         score_level_2: 22000, score_level_3: 40000,
         ..WeaponSettings::empty()
     }
@@ -486,7 +486,7 @@ fn base_freezegun() -> WeaponSettings {
     WeaponSettings {
         cooldown: 0.3, magazine: 15, reload_time: 2.0, range: 250.0,
         damage: 3.0, bullet_speed: 400.0, score_required: 1500,
-        slow_factor: 0.25, slow_duration: 3.0, max_magazines: 5,
+        spread_angle: 0.05, slow_factor: 0.25, slow_duration: 3.0, max_magazines: 5,
         score_level_2: 5000, score_level_3: 12000,
         ..WeaponSettings::empty()
     }
@@ -661,14 +661,14 @@ impl Default for GameSettings {
         let pistol_base = WeaponSettings {
             cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 350.0,
             damage: 10.0, bullet_speed: 500.0, score_required: 0,
-            max_magazines: 10,
+            spread_angle: 0.03, max_magazines: 10,
             score_level_2: 500, score_level_3: 2000,
             ..WeaponSettings::empty()
         };
         let uzi_base = WeaponSettings {
             cooldown: 0.08, magazine: 30, reload_time: 2.0, range: 250.0,
             damage: 5.0, bullet_speed: 450.0, score_required: 200,
-            max_magazines: 6,
+            spread_angle: 0.06, max_magazines: 6,
             score_level_2: 1500, score_level_3: 4000,
             ..WeaponSettings::empty()
         };
@@ -705,12 +705,12 @@ impl Default for GameSettings {
             player_hp: 100.0,
             player_regen_rate: 0.0,
             player_regen_delay: 5.0,
-            zombie_speed: 80.0,
+            zombie_speed: 20.0,
             zombie_hp: 30.0,
             zombie_damage: 10.0,
             zombie_damage_cooldown: 0.8,
             big_zombie_hp: 100.0,
-            big_zombie_speed: 50.0,
+            big_zombie_speed: 10.0,
             big_zombie_damage: 25.0,
             big_zombie_scale: 1.8,
             big_zombie_spawn_chance: 0.15,
