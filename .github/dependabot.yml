@@ -3,10 +3,16 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly"
-    allow:
-      - dependency-type: "all"
+      interval: "monthly"
+    groups:
+      all-cargo:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    groups:
+      all-actions:
+        patterns:
+          - "*"
