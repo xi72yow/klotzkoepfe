@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use rand::Rng;
+use rand::RngExt;
 
 use crate::components::GroundDecalLayer;
 use crate::constants::*;

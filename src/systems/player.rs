@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::components::*;
 use crate::constants::*;
@@ -47,7 +47,7 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
         WeaponType::Pistol
     };
     let ws = settings.weapon_at_level(weapon, settings.weapon_level(weapon, 0));
-    let weapon_arm_side: f32 = if rand::Rng::random_bool(&mut rand::rng(), 0.5) { 1.0 } else { -1.0 };
+    let weapon_arm_side: f32 = if rand::rng().random_bool(0.5) { 1.0 } else { -1.0 };
     let body_color = darken(color, 0.7);
 
     // Initialize magazines for all weapons

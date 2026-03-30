@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    allow:
+      - dependency-name: "bevy"
+      - dependency-name: "rand"
+      - dependency-name: "serde"
+      - dependency-name: "serde_json"
     groups:
       all-cargo:
         patterns:

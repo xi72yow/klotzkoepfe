@@ -4,7 +4,7 @@ use crate::components::*;
 use crate::resources::*;
 use crate::systems::blood::spawn_blood;
 use crate::systems::crates::spawn_random_crate;
-use rand::Rng;
+use rand::RngExt;
 
 pub fn apply_knockback(
     time: Res<Time>,

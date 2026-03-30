@@ -5,7 +5,7 @@ use crate::constants::*;
 use crate::resources::GameSettings;
 use super::ground_decals::{DecalStamp, GroundDecalMap};
 use super::explosion_fx::{self, ExplosionMaterial};
-use rand::Rng;
+use rand::RngExt;
 
 pub fn bullet_movement(
     mut commands: Commands,

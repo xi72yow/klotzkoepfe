@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
-use rand::Rng;
+use rand::RngExt;
 
 use crate::components::*;
 
