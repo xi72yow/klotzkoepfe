@@ -63,7 +63,7 @@ jobs:
         run: zstd -d image.tar.zst -o image.tar && docker load < image.tar
 
       - name: Run tests in container
-        run: docker run --rm build-image cargo test --release
+        run: docker run --rm build-image cargo test --profile dist
 
   audit:
     needs: build-image
