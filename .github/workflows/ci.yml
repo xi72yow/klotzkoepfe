@@ -51,6 +51,7 @@ jobs:
           retention-days: 1
 
   test:
+    if: false # no tests yet — re-enable when tests are added
     needs: build-image
     runs-on: ubuntu-latest
     steps:
@@ -81,7 +82,7 @@ jobs:
         run: docker run --rm build-image cargo audit
 
   release:
-    needs: [test, audit]
+    needs: [audit]  # add test back when re-enabled
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'yes'
     runs-on: ubuntu-latest
     outputs:
