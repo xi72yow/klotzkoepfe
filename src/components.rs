@@ -226,6 +226,24 @@ impl WeaponType {
         }
     }
 
+    /// Trail-Einstellungen pro Waffe: (size, spawn_interval_secs, lifetime_secs)
+    /// None = kein Trail (Mine, Flammenwerfer, FreezeGun)
+    pub fn trail_config(self) -> Option<(f32, f32, f32)> {
+        match self {
+            WeaponType::Pistol => Some((2.0, 0.015, 0.08)),
+            WeaponType::Uzi => Some((1.5, 0.01, 0.06)),
+            WeaponType::Shotgun => Some((1.5, 0.015, 0.06)),
+            WeaponType::Railgun => Some((3.0, 0.008, 0.15)),
+            WeaponType::Laser => Some((2.5, 0.006, 0.12)),
+            WeaponType::Tesla => Some((2.5, 0.01, 0.1)),
+            WeaponType::Grenade => Some((3.0, 0.03, 0.2)),
+            WeaponType::Rocket => Some((4.0, 0.01, 0.25)),
+            WeaponType::Boomerang => Some((3.0, 0.02, 0.15)),
+            WeaponType::Buzzsaw => Some((3.0, 0.015, 0.12)),
+            WeaponType::Mine | WeaponType::Flamethrower | WeaponType::FreezeGun => None,
+        }
+    }
+
     pub fn sprite_color(self) -> Color {
         match self {
             WeaponType::Pistol => Color::srgb(0.5, 0.5, 0.5),
@@ -258,6 +276,7 @@ pub struct Player {
     pub magazines: HashMap<WeaponType, u32>,
     pub weapon_level: u32,
     pub shoot_loop_sound: Option<Entity>,
+    pub crouching: bool,
 }
 
 
@@ -598,4 +617,18 @@ pub struct AirdropCrate {
 
 #[derive(Component)]
 pub struct AirdropShadow;
+
+#[derive(Component)]
+pub struct TrailEmitter {
+    pub color: Color,
+    pub size: f32,
+    pub spawn_timer: Timer,
+    pub lifetime: f32,
+}
+
+#[derive(Component)]
+pub struct TrailParticle {
+    pub lifetime: Timer,
+    pub initial_size: f32,
+}
 

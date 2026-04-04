@@ -226,6 +226,8 @@ pub struct GameSettings {
     pub show_cone_debug: bool,
     #[serde(skip)]
     pub show_grid: bool,
+    #[serde(default = "default_grid_size")]
+    pub grid_size: f32,
     #[serde(skip)]
     pub show_weapon_range: bool,
     #[serde(skip)]
@@ -239,6 +241,8 @@ pub struct GameSettings {
     pub player_regen_rate: f32,
     #[serde(default = "default_regen_delay")]
     pub player_regen_delay: f32,
+    #[serde(default = "default_crouch_speed")]
+    pub crouch_speed_factor: f32,
 
     pub zombie_speed: f32,
     pub zombie_hp: f32,
@@ -417,6 +421,8 @@ fn default_blood_particles() -> u32 { 4 }
 fn default_blood_spread() -> f32 { 100.0 }
 fn default_dismember_chance() -> f32 { 0.30 }
 fn default_gib_decay() -> f32 { 3.0 }
+fn default_grid_size() -> f32 { 50.0 }
+fn default_crouch_speed() -> f32 { 0.4 }
 
 // Basis-WeaponSettings (Level 1) fuer jede Waffe
 fn base_shotgun() -> WeaponSettings {
@@ -698,6 +704,7 @@ impl Default for GameSettings {
             show_debug: false,
             show_cone_debug: false,
             show_grid: false,
+            grid_size: default_grid_size(),
             show_weapon_range: false,
             show_hitboxes: false,
             player_count: 1,
@@ -705,6 +712,7 @@ impl Default for GameSettings {
             player_hp: 100.0,
             player_regen_rate: 0.0,
             player_regen_delay: 5.0,
+            crouch_speed_factor: default_crouch_speed(),
             zombie_speed: 20.0,
             zombie_hp: 30.0,
             zombie_damage: 10.0,

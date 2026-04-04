@@ -156,6 +156,9 @@ fn main() {
             (
                 explosion_fx::update_shader_explosions,
                 explosion_fx::update_muzzle_flashes,
+                trail::trail_attach,
+                trail::trail_emit,
+                trail::trail_update,
                 ground_decals::process_decal_stamps,
                 cone_beam::cone_beam_spawn,
                 cone_beam::cone_beam_despawn,

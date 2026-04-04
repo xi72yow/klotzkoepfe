@@ -72,6 +72,7 @@ fn spawn_one_player(commands: &mut Commands, settings: &GameSettings, id: Player
                 magazines,
                 weapon_level: 1,
                 shoot_loop_sound: None,
+                crouching: false,
             },
             Health { current: settings.player_hp, max: settings.player_hp },
             RegenCooldown { timer: Timer::from_seconds(settings.player_regen_delay.max(0.1), TimerMode::Once) },
@@ -314,6 +315,12 @@ pub fn player_movement(
     let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS - PLAYER_SIZE.y / 2.0;
 
     for (mut player, mut transform) in query.iter_mut() {
+        // Crouching (gehalten)
+        player.crouching = match player.id {
+            PlayerId::P1 => keyboard.any_pressed([KeyCode::KeyC, KeyCode::ShiftLeft]),
+            PlayerId::P2 => keyboard.pressed(KeyCode::Numpad0),
+        };
+
         let mut direction = Vec2::ZERO;
         match player.id {
             PlayerId::P1 => {
@@ -333,8 +340,9 @@ pub fn player_movement(
             direction = direction.normalize();
             player.facing = direction;
         }
-        transform.translation.x += direction.x * settings.player_speed * time.delta_secs();
-        transform.translation.y += direction.y * settings.player_speed * time.delta_secs();
+        let speed = if player.crouching { settings.player_speed * settings.crouch_speed_factor } else { settings.player_speed };
+        transform.translation.x += direction.x * speed * time.delta_secs();
+        transform.translation.y += direction.y * speed * time.delta_secs();
         transform.translation.x = transform.translation.x.clamp(-half_w, half_w);
         transform.translation.y = transform.translation.y.clamp(-half_h, half_h);
     }
@@ -360,6 +368,13 @@ pub fn player_walk_animation(
         let facing = player.facing;
         let facing_up = facing.y > 0.3;
         let t = time.elapsed_secs();
+        // Crouch: 0.0 = stehend, 1.0 = voll geduckt
+        let crouch_target = if player.crouching { 1.0 } else { 0.0 };
+        // Smooth transition (wir haben keinen persistenten State, nutzen Scale als Proxy)
+        // crouch_frac wird direkt aus dem Target berechnet (instant fuer jetzt)
+        let cf = crouch_target;
+        let crouch_y_scale = 1.0 - cf * 0.35; // 0.65 scale wenn geduckt
+        let crouch_y_offset = -cf * 5.0; // alles 5px runter
 
         // Erst Waffen-Arm-Position und -Seite bestimmen (Hip-Fire: nah am Koerper)
         // Bei seitlicher Blickrichtung: Waffe auf Armhoehe (-2.0)
@@ -382,18 +397,20 @@ pub fn player_walk_animation(
         for child in children.iter() {
             // Bein-Animation: Beine bewegen sich in Laufrichtung
             if let Ok((leg, mut transform)) = leg_query.get_mut(child) {
-                let base_x = LEG_SPACING * leg.side;
-                let base_y = -14.0;
+                let base_x = LEG_SPACING * leg.side * (1.0 + cf * 0.3); // breiter wenn geduckt
+                let base_y = -14.0 + crouch_y_offset;
 
                 if is_moving {
                     let phase = leg.side;
-                    let swing = (t * 12.0 + phase * std::f32::consts::PI).sin() * 3.0;
+                    let swing_amp = if player.crouching { 1.5 } else { 3.0 };
+                    let swing = (t * 12.0 + phase * std::f32::consts::PI).sin() * swing_amp;
                     transform.translation.x = base_x + facing.x * swing;
                     transform.translation.y = base_y + facing.y * swing;
                 } else {
                     transform.translation.x = base_x;
                     transform.translation.y = base_y;
                 }
+                transform.scale.y = crouch_y_scale;
             }
 
             // Augen: sichtbar wenn nach unten/seitlich schauend, versteckt wenn nach oben
@@ -404,14 +421,14 @@ pub fn player_walk_animation(
                     *vis = Visibility::Visible;
                     let eye_base_x = 4.0 * eye.side;
                     transform.translation.x = eye_base_x + facing.x * 2.0;
-                    transform.translation.y = 10.0 + facing.y * 1.0;
+                    transform.translation.y = (10.0 + facing.y * 1.0) * crouch_y_scale + crouch_y_offset;
                 }
             }
 
             // Arme
             if let Ok((arm, mut transform)) = arm_query.get_mut(child) {
                 let base_x = ARM_OFFSET_X * arm.side;
-                let base_y = -2.0;
+                let base_y = -2.0 * crouch_y_scale + crouch_y_offset;
                 if arm.has_weapon {
                     // Waffen-Arm: bleibt seitlich, leicht nach vorne (Hip-Fire Rambo-Stil)
                     let lean = 1.5;
@@ -461,35 +478,38 @@ pub fn player_walk_animation(
 
             // Kopf: leichtes Wippen beim Laufen
             if let Ok(mut transform) = head_query.get_mut(child) {
+                let head_base_y = 8.0 * crouch_y_scale + crouch_y_offset;
                 if is_moving {
                     let bob = (t * 12.0).sin() * 0.6;
                     let sway = (t * 6.0).sin() * 0.4;
                     transform.translation.x = sway;
-                    transform.translation.y = 8.0 + bob;
+                    transform.translation.y = head_base_y + bob;
                     transform.rotation = Quat::from_rotation_z((t * 6.0).sin() * 0.03);
                 } else {
-                    // Idle: subtiles Atmen
                     let breathe = (t * 1.5).sin() * 0.3;
                     transform.translation.x = 0.0;
-                    transform.translation.y = 8.0 + breathe;
+                    transform.translation.y = head_base_y + breathe;
                     transform.rotation = Quat::IDENTITY;
                 }
+                transform.scale.y = 1.0 - cf * 0.15; // Kopf nur leicht stauchen
             }
 
             // Koerper: leichtes Schwanken beim Laufen
             if let Ok(mut transform) = body_query.get_mut(child) {
+                let body_base_y = -4.0 * crouch_y_scale + crouch_y_offset;
                 if is_moving {
                     let bob = (t * 12.0 + 1.0).sin() * 0.4;
                     let sway = (t * 6.0 + 0.5).sin() * 0.3;
                     transform.translation.x = sway;
-                    transform.translation.y = -4.0 + bob;
+                    transform.translation.y = body_base_y + bob;
                     transform.rotation = Quat::from_rotation_z((t * 6.0 + 0.5).sin() * 0.02);
                 } else {
                     let breathe = (t * 1.5 + 0.5).sin() * 0.2;
                     transform.translation.x = 0.0;
-                    transform.translation.y = -4.0 + breathe;
+                    transform.translation.y = body_base_y + breathe;
                     transform.rotation = Quat::IDENTITY;
                 }
+                transform.scale.y = crouch_y_scale;
             }
         }
     }
@@ -506,11 +526,15 @@ pub fn player_weapon_switch(
     mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
     for (mut player, player_children) in query.iter_mut() {
-        let switch = match player.id {
+        let forward = match player.id {
             PlayerId::P1 => keyboard.just_pressed(KeyCode::KeyQ),
             PlayerId::P2 => keyboard.just_pressed(KeyCode::ShiftRight),
         };
-        if switch {
+        let backward = match player.id {
+            PlayerId::P1 => keyboard.just_pressed(KeyCode::KeyE),
+            PlayerId::P2 => keyboard.just_pressed(KeyCode::ControlRight),
+        };
+        if forward || backward {
             let available: Vec<WeaponType> = if settings.gamemaster_level > 0 {
                 WeaponType::all().to_vec()
             } else {
@@ -520,7 +544,11 @@ pub fn player_weapon_switch(
             };
             if available.len() <= 1 { continue; }
             let idx = available.iter().position(|w| *w == player.weapon).unwrap_or(0);
-            let new_weapon = available[(idx + 1) % available.len()];
+            let new_weapon = if forward {
+                available[(idx + 1) % available.len()]
+            } else {
+                available[(idx + available.len() - 1) % available.len()]
+            };
             let lvl = settings.weapon_level(new_weapon, score.points);
             let ws = settings.weapon_at_level(new_weapon, lvl);
             let ws = &ws;
@@ -742,6 +770,8 @@ pub fn player_shoot(
             let tip = weapon_tip(&player, player_pos, weapon_arm_pos);
             let pos = tip.extend(transform.translation.z);
             let angle = dir.y.atan2(dir.x);
+            // Crouching: halbe Streuung
+            let spread_mul = if player.crouching { 0.5 } else { 1.0 };
 
             // Muzzle Flash spawnen (nur fuer Waffen die einen haben)
             if let Some((color_inner, color_outer)) = weapon.muzzle_flash_colors() {
@@ -793,7 +823,7 @@ pub fn player_shoot(
                 }
                 WeaponType::Shotgun => {
                     let count = ws.pellet_count.max(1);
-                    let spread = ws.spread_angle.max(0.01);
+                    let spread = (ws.spread_angle * spread_mul).max(0.01);
                     for _ in 0..count {
                         let offset = rng.random_range(-spread..spread);
                         let pa = angle + offset;
@@ -863,8 +893,9 @@ pub fn player_shoot(
                 }
                 // Laser, Railgun, Pistol, Uzi - standard bullets
                 _ => {
-                    let final_angle = if ws.spread_angle > 0.0 {
-                        angle + rng.random_range(-ws.spread_angle / 2.0..ws.spread_angle / 2.0)
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_angle = if effective_spread > 0.0 {
+                        angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0)
                     } else {
                         angle
                     };

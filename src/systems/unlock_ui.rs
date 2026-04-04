@@ -232,8 +232,9 @@ fn build_controls_tab_ui(parent: &mut ChildSpawnerCommands) {
     section_header(parent, "Spieler 1", PLAYER_COLOR_P1);
     key_row(parent, &["W", "A", "S", "D"], "Bewegen");
     key_row(parent, &["Leertaste"], "Schiessen");
-    key_row(parent, &["Q"], "Waffe wechseln");
-    key_row(parent, &["E"], "Reload");
+    key_row(parent, &["Q"], "Naechste Waffe");
+    key_row(parent, &["E"], "Vorherige Waffe");
+    key_row(parent, &["C"], "Ducken");
 
     parent.spawn(Node { height: Val::Px(12.0), ..default() });
 
@@ -241,8 +242,9 @@ fn build_controls_tab_ui(parent: &mut ChildSpawnerCommands) {
     section_header(parent, "Spieler 2", PLAYER_COLOR_P2);
     key_row(parent, &["\u{2191}", "\u{2190}", "\u{2193}", "\u{2192}"], "Bewegen");
     key_row(parent, &["Enter"], "Schiessen");
-    key_row(parent, &["R-Shift"], "Waffe wechseln");
-    key_row(parent, &["R-Ctrl"], "Reload");
+    key_row(parent, &["R-Shift"], "Naechste Waffe");
+    key_row(parent, &["R-Ctrl"], "Vorherige Waffe");
+    key_row(parent, &["Num-0"], "Ducken");
 
     parent.spawn(Node { height: Val::Px(12.0), ..default() });
 

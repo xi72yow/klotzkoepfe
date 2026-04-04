@@ -113,6 +113,7 @@ fn all_items() -> Vec<Item> {
         Item::Value(Entry { label: "HP", help: "Maximale Lebenspunkte der Spieler", get: |s| s.player_hp, set: |s,v| s.player_hp = v, step: 10.0, min: 10.0, max: 5000.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Regen/s", help: "HP-Regeneration pro Sekunde (0=aus)", get: |s| s.player_regen_rate, set: |s,v| s.player_regen_rate = v, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Regen-Delay", help: "Sekunden nach Schaden bis Regen startet", get: |s| s.player_regen_delay, set: |s,v| s.player_regen_delay = v, step: 0.5, min: 0.5, max: 30.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Duck-Speed", help: "Geschwindigkeit beim Ducken (0.4=40% von normal)", get: |s| s.crouch_speed_factor, set: |s,v| s.crouch_speed_factor = v, step: 0.05, min: 0.1, max: 1.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Friendly Fire", help: "Spieler-Projektile treffen anderen Spieler", get: |s| if s.friendly_fire { 1.0 } else { 0.0 }, set: |s,v| s.friendly_fire = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Expl. FF", help: "Explosionen verletzen auch Spieler", get: |s| if s.explosion_friendly_fire { 1.0 } else { 0.0 }, set: |s,v| s.explosion_friendly_fire = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "KB Spieler", help: "Knockback-Staerke auf Spieler bei Treffer", get: |s| s.knockback_strength_player, set: |s,v| s.knockback_strength_player = v, step: 25.0, min: 0.0, max: 1000.0, display: DisplayMode::Float }),
@@ -178,6 +179,7 @@ fn all_items() -> Vec<Item> {
         Item::Category("Debug"),
         Item::Value(Entry { label: "Cone-Gizmos", help: "Zeige Cone-Beam Debug-Linien (Flammenwerfer/Freeze)", get: |s| if s.show_cone_debug { 1.0 } else { 0.0 }, set: |s,v| s.show_cone_debug = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Gitter", help: "Zeige Gitter-Overlay im Spielfeld", get: |s| if s.show_grid { 1.0 } else { 0.0 }, set: |s,v| s.show_grid = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
+        Item::Value(Entry { label: "Gitter-Groesse", help: "Abstand der Gitterlinien (z.B. auf Waffen-Range setzen)", get: |s| s.grid_size, set: |s,v| s.grid_size = v, step: 10.0, min: 20.0, max: 1000.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Reichweite", help: "Zeige Waffen-Reichweite als Kreis um Spieler", get: |s| if s.show_weapon_range { 1.0 } else { 0.0 }, set: |s,v| s.show_weapon_range = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Hitboxen", help: "Zeige Kollisionsboxen fuer Spieler, Zombies und Projektile", get: |s| if s.show_hitboxes { 1.0 } else { 0.0 }, set: |s,v| s.show_hitboxes = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
 
@@ -225,6 +227,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[0].cooldown, 0.1, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", shotgun[0].magazine, 1.0, 1.0, 200.0),
         wl!("Damage", "Schaden pro Pellet", shotgun[0].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", shotgun[0].range, 25.0, 50.0, 5000.0),
         wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[0].pellet_count, 1.0, 1.0, 100.0),
         wl!("Spread", "Streuwinkel der Pellets", shotgun[0].spread_angle, 0.05, 0.1, 3.14),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[0].bullet_speed, 25.0, 50.0, 5000.0),
@@ -233,6 +236,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[1].cooldown, 0.1, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", shotgun[1].magazine, 1.0, 1.0, 200.0),
         wl!("Damage", "Schaden pro Pellet", shotgun[1].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", shotgun[1].range, 25.0, 50.0, 5000.0),
         wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[1].pellet_count, 1.0, 1.0, 100.0),
         wl!("Spread", "Streuwinkel der Pellets", shotgun[1].spread_angle, 0.05, 0.1, 3.14),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[1].bullet_speed, 25.0, 50.0, 5000.0),
@@ -241,6 +245,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", shotgun[2].cooldown, 0.1, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", shotgun[2].magazine, 1.0, 1.0, 200.0),
         wl!("Damage", "Schaden pro Pellet", shotgun[2].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", shotgun[2].range, 25.0, 50.0, 5000.0),
         wl!("Pellets", "Anzahl Kugeln pro Schuss", shotgun[2].pellet_count, 1.0, 1.0, 100.0),
         wl!("Spread", "Streuwinkel der Pellets", shotgun[2].spread_angle, 0.05, 0.1, 3.14),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", shotgun[2].bullet_speed, 25.0, 50.0, 5000.0),
@@ -253,6 +258,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[0].cooldown, 0.01, 0.02, 5.0),
         wl!("Magazin", "Schuss pro Magazin", uzi[0].magazine, 5.0, 5.0, 1000.0),
         wl!("Damage", "Schaden pro Treffer", uzi[0].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", uzi[0].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[0].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Spread", "Streuwinkel (0=exakt)", uzi[0].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Uzi, 2),
@@ -260,6 +266,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[1].cooldown, 0.01, 0.02, 5.0),
         wl!("Magazin", "Schuss pro Magazin", uzi[1].magazine, 5.0, 5.0, 1000.0),
         wl!("Damage", "Schaden pro Treffer", uzi[1].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", uzi[1].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[1].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Spread", "Streuwinkel (0=exakt)", uzi[1].spread_angle, 0.01, 0.0, 3.14),
         level_header(WeaponType::Uzi, 3),
@@ -267,6 +274,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", uzi[2].cooldown, 0.01, 0.02, 5.0),
         wl!("Magazin", "Schuss pro Magazin", uzi[2].magazine, 5.0, 5.0, 1000.0),
         wl!("Damage", "Schaden pro Treffer", uzi[2].damage, 1.0, 1.0, 500.0),
+        wl!("Range", "Maximale Reichweite", uzi[2].range, 25.0, 50.0, 5000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", uzi[2].bullet_speed, 25.0, 50.0, 5000.0),
         wl!("Spread", "Streuwinkel (0=exakt)", uzi[2].spread_angle, 0.01, 0.0, 3.14),
 
@@ -365,6 +373,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[0].cooldown, 0.05, 0.05, 10.0),
         wl!("Magazin", "Schuss pro Magazin", freezegun[0].magazine, 1.0, 1.0, 500.0),
         wl!("Damage", "Schaden pro Treffer", freezegun[0].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Maximale Reichweite", freezegun[0].range, 25.0, 50.0, 5000.0),
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[0].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[0].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[0].bullet_speed, 25.0, 50.0, 5000.0),
@@ -374,6 +383,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[1].cooldown, 0.05, 0.05, 10.0),
         wl!("Magazin", "Schuss pro Magazin", freezegun[1].magazine, 1.0, 1.0, 500.0),
         wl!("Damage", "Schaden pro Treffer", freezegun[1].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Maximale Reichweite", freezegun[1].range, 25.0, 50.0, 5000.0),
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[1].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[1].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[1].bullet_speed, 25.0, 50.0, 5000.0),
@@ -383,6 +393,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", freezegun[2].cooldown, 0.05, 0.05, 10.0),
         wl!("Magazin", "Schuss pro Magazin", freezegun[2].magazine, 1.0, 1.0, 500.0),
         wl!("Damage", "Schaden pro Treffer", freezegun[2].damage, 0.5, 0.5, 200.0),
+        wl!("Range", "Maximale Reichweite", freezegun[2].range, 25.0, 50.0, 5000.0),
         wl!("Slow-Faktor", "Verlangsamung (0.25=75% langsamer)", freezegun[2].slow_factor, 0.05, 0.05, 0.99),
         wl!("Slow-Dauer", "Dauer der Verlangsamung in Sek.", freezegun[2].slow_duration, 0.5, 0.5, 60.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", freezegun[2].bullet_speed, 25.0, 50.0, 5000.0),
@@ -427,6 +438,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[0].cooldown, 0.05, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", tesla[0].magazine, 1.0, 1.0, 300.0),
         wl!("Damage", "Schaden Haupttreffer", tesla[0].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Reichweite", tesla[0].range, 25.0, 50.0, 5000.0),
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[0].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[0].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[0].bullet_speed, 25.0, 50.0, 5000.0),
@@ -436,6 +448,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[1].cooldown, 0.05, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", tesla[1].magazine, 1.0, 1.0, 300.0),
         wl!("Damage", "Schaden Haupttreffer", tesla[1].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Reichweite", tesla[1].range, 25.0, 50.0, 5000.0),
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[1].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[1].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[1].bullet_speed, 25.0, 50.0, 5000.0),
@@ -445,6 +458,7 @@ fn all_items() -> Vec<Item> {
         wl!("Cooldown", "Sekunden zwischen Schuessen", tesla[2].cooldown, 0.05, 0.1, 10.0),
         wl!("Magazin", "Schuss pro Magazin", tesla[2].magazine, 1.0, 1.0, 300.0),
         wl!("Damage", "Schaden Haupttreffer", tesla[2].damage, 1.0, 1.0, 1000.0),
+        wl!("Range", "Maximale Reichweite", tesla[2].range, 25.0, 50.0, 5000.0),
         wl!("Chains", "Anzahl Kettenblitz-Spruenge", tesla[2].chain_count, 1.0, 0.0, 50.0),
         wl!("Chain-Range", "Max. Distanz fuer Kettenblitz", tesla[2].chain_range, 10.0, 20.0, 2000.0),
         wl!("Proj-Speed", "Projektilgeschwindigkeit", tesla[2].bullet_speed, 25.0, 50.0, 5000.0),
@@ -1285,24 +1299,26 @@ pub fn grid_overlay_gizmos(
     let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
     let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
     let color = Color::srgba(1.0, 1.0, 1.0, 0.08);
+    let axis_color = Color::srgba(1.0, 1.0, 1.0, 0.15);
     let z = 19.0;
-    let step = 50.0;
+    let step = settings.grid_size;
 
-    // Vertikale Linien
-    let mut x = -half_w + step;
+    // Vertikale Linien (x=0 ueberspringen, wird als Achse gezeichnet)
+    let mut x = step;
     while x < half_w {
         gizmos.line(Vec3::new(x, -half_h, z), Vec3::new(x, half_h, z), color);
+        gizmos.line(Vec3::new(-x, -half_h, z), Vec3::new(-x, half_h, z), color);
         x += step;
     }
-    // Horizontale Linien
-    let mut y = -half_h + step;
+    // Horizontale Linien (y=0 ueberspringen, wird als Achse gezeichnet)
+    let mut y = step;
     while y < half_h {
         gizmos.line(Vec3::new(-half_w, y, z), Vec3::new(half_w, y, z), color);
+        gizmos.line(Vec3::new(-half_w, -y, z), Vec3::new(half_w, -y, z), color);
         y += step;
     }
 
     // Achsen hervorheben
-    let axis_color = Color::srgba(1.0, 1.0, 1.0, 0.15);
     gizmos.line(Vec3::new(0.0, -half_h, z), Vec3::new(0.0, half_h, z), axis_color);
     gizmos.line(Vec3::new(-half_w, 0.0, z), Vec3::new(half_w, 0.0, z), axis_color);
 }
