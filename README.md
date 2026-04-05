@@ -2,7 +2,9 @@
 
 Klotzkoepfe ist ein rasanter 2D-Top-Down-Zombie-Survival-Shooter fuer bis zu zwei Spieler an einer Tastatur. Welle um Welle stuermen immer staerkere Zombies auf euch ein, waehrend ihr durch das Zerstoeren von Kisten neue Waffen wie Schrotflinten, Granaten, Raketen und Minen freischaltet. Taktisches Zusammenspiel, geschicktes Positionieren und der gezielte Einsatz der verschiedenen Waffen entscheiden ueber euer Ueberleben. Wer den hoechsten Combo-Multiplikator aufbaut und die meisten Wellen uebersteht, gewinnt.
 
-[gameplay.webm](https://github.com/user-attachments/assets/063c8387-0259-4365-8043-831259ed1310)
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/063c8387-0259-4365-8043-831259ed1310" width="600" autoplay loop muted></video>
+</p>
 
 ## Installation (Debian/Ubuntu)
 
