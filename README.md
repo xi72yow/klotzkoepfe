@@ -1,8 +1,6 @@
 # Klotzkoepfe
 
-Boxhead-artiger 2-Spieler Zombie-Shooter (Bevy 0.18, Rust).
-
-2 Spieler auf einer Tastatur: P1 WASD+Space+Q, P2 Pfeiltasten+Enter+RShift.
+Klotzkoepfe ist ein rasanter 2D-Top-Down-Zombie-Survival-Shooter fuer bis zu zwei Spieler an einer Tastatur. Welle um Welle stuermen immer staerkere Zombies auf euch ein, waehrend ihr durch das Zerstoeren von Kisten neue Waffen wie Schrotflinten, Granaten, Raketen und Minen freischaltet. Taktisches Zusammenspiel, geschicktes Positionieren und der gezielte Einsatz der verschiedenen Waffen entscheiden ueber euer Ueberleben. Wer den hoechsten Combo-Multiplikator aufbaut und die meisten Wellen uebersteht, gewinnt.
 
 ## Installation (Debian/Ubuntu)
 
@@ -26,42 +24,13 @@ sudo apt update && sudo apt install klotzkoepfe
 sudo apt update && sudo apt upgrade klotzkoepfe
 ```
 
-## Manuell bauen
-
-### Abhaengigkeiten (Debian/Ubuntu)
+### Manuell bauen
 
 ```bash
+# Abhaengigkeiten (Debian/Ubuntu)
 sudo apt install pkg-config libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
-```
 
-### Build
-
-```bash
+# Build & Starten
 cargo build --release
 ./target/release/klotzkoepfe
 ```
-
-## Steuerung
-
-| Aktion | Spieler 1 | Spieler 2 |
-|--------|-----------|-----------|
-| Bewegen | WASD | Pfeiltasten |
-| Schiessen | Space | Enter |
-| Waffe wechseln | Q | RShift |
-| Pause/Settings | ESC | ESC |
-
-### Pause-Menue
-
-- **Up/Down**: Wert waehlen
-- **Left/Right**: Wert aendern (Shift: 10x)
-- **Tab/Shift+Tab**: Kategorie wechseln
-- **F5**: Settings speichern
-- **F6**: Defaults wiederherstellen
-
-## Release erstellen
-
-Ein neues Release wird ueber GitHub Actions erstellt:
-
-1. Actions > CI > Run workflow
-2. `release: yes` setzen
-3. Optional: Version angeben (sonst aus Cargo.toml)
