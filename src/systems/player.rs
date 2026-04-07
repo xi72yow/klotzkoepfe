@@ -790,31 +790,41 @@ pub fn player_shoot(
 
             match weapon {
                 WeaponType::Grenade => {
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_angle = if effective_spread > 0.0 {
+                        angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0)
+                    } else { angle };
+                    let final_dir = Vec2::new(final_angle.cos(), final_angle.sin());
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
+                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(final_angle)),
                         GrenadeProjectile {
                             damage: ws.damage,
                             fuse: Timer::from_seconds(ws.range / ws.bullet_speed, TimerMode::Once),
                             explosion_radius: settings.explosion_radius,
                             level: lvl,
                         },
-                        Velocity(dir * ws.bullet_speed),
+                        Velocity(final_dir * ws.bullet_speed),
                         BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Rocket => {
                     let expl_r = if ws.explosion_radius_override > 0.0 { ws.explosion_radius_override } else { settings.explosion_radius };
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_angle = if effective_spread > 0.0 {
+                        angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0)
+                    } else { angle };
+                    let final_dir = Vec2::new(final_angle.cos(), final_angle.sin());
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
+                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(final_angle)),
                         RocketProjectile {
                             damage: ws.damage,
                             explosion_radius: expl_r,
                             range_remaining: ws.range,
                             level: lvl,
                         },
-                        Velocity(dir * ws.bullet_speed),
+                        Velocity(final_dir * ws.bullet_speed),
                         BulletOwner(player.id),
                     ));
                 }
@@ -851,39 +861,54 @@ pub fn player_shoot(
                     ));
                 }
                 WeaponType::Boomerang => {
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_dir = if effective_spread > 0.0 {
+                        let fa = angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0);
+                        Vec2::new(fa.cos(), fa.sin())
+                    } else { dir };
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
                         Transform::from_translation(pos),
                         BoomerangProjectile {
                             damage: ws.damage, owner_id: player.id,
                             returning: false, max_dist: ws.range,
-                            traveled: 0.0, direction: dir,
+                            traveled: 0.0, direction: final_dir,
                         },
                         Spinning { speed: 15.0 },
                         BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Tesla => {
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_angle = if effective_spread > 0.0 {
+                        angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0)
+                    } else { angle };
+                    let final_dir = Vec2::new(final_angle.cos(), final_angle.sin());
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
-                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(angle)),
+                        Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(final_angle)),
                         Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: 1 },
                         TeslaBullet {
                             chain_count: ws.chain_count.max(1),
                             chain_range: if ws.chain_range > 0.0 { ws.chain_range } else { 80.0 },
                             chain_damage: ws.damage * 0.7,
                         },
-                        Velocity(dir * ws.bullet_speed),
+                        Velocity(final_dir * ws.bullet_speed),
                         BulletOwner(player.id),
                     ));
                 }
                 WeaponType::Buzzsaw => {
                     let pierce = if ws.pierce_count > 0 { ws.pierce_count } else { 999 };
+                    let effective_spread = ws.spread_angle * spread_mul;
+                    let final_angle = if effective_spread > 0.0 {
+                        angle + rng.random_range(-effective_spread / 2.0..effective_spread / 2.0)
+                    } else { angle };
+                    let final_dir = Vec2::new(final_angle.cos(), final_angle.sin());
                     commands.spawn((
                         Sprite { color: weapon.bullet_color(), custom_size: Some(weapon.bullet_size()), ..default() },
                         Transform::from_translation(pos),
                         Bullet { damage: ws.damage, range_remaining: ws.range, pierce_remaining: pierce },
-                        Velocity(dir * ws.bullet_speed),
+                        Velocity(final_dir * ws.bullet_speed),
                         Spinning { speed: 12.0 },
                         BulletOwner(player.id),
                     ));

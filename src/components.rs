@@ -230,16 +230,16 @@ impl WeaponType {
     /// None = kein Trail (Mine, Flammenwerfer, FreezeGun)
     pub fn trail_config(self) -> Option<(f32, f32, f32)> {
         match self {
-            WeaponType::Pistol => Some((2.0, 0.015, 0.08)),
-            WeaponType::Uzi => Some((1.5, 0.01, 0.06)),
-            WeaponType::Shotgun => Some((1.5, 0.015, 0.06)),
-            WeaponType::Railgun => Some((3.0, 0.008, 0.15)),
-            WeaponType::Laser => Some((2.5, 0.006, 0.12)),
-            WeaponType::Tesla => Some((2.5, 0.01, 0.1)),
-            WeaponType::Grenade => Some((3.0, 0.03, 0.2)),
-            WeaponType::Rocket => Some((4.0, 0.01, 0.25)),
-            WeaponType::Boomerang => Some((3.0, 0.02, 0.15)),
-            WeaponType::Buzzsaw => Some((3.0, 0.015, 0.12)),
+            WeaponType::Pistol => Some((3.5, 0.008, 0.15)),
+            WeaponType::Uzi => Some((3.0, 0.005, 0.12)),
+            WeaponType::Shotgun => Some((3.0, 0.008, 0.12)),
+            WeaponType::Railgun => Some((5.0, 0.004, 0.25)),
+            WeaponType::Laser => Some((4.5, 0.003, 0.20)),
+            WeaponType::Tesla => Some((4.0, 0.005, 0.18)),
+            WeaponType::Grenade => Some((5.0, 0.015, 0.35)),
+            WeaponType::Rocket => Some((6.0, 0.005, 0.40)),
+            WeaponType::Boomerang => Some((5.0, 0.01, 0.25)),
+            WeaponType::Buzzsaw => Some((5.0, 0.008, 0.20)),
             WeaponType::Mine | WeaponType::Flamethrower | WeaponType::FreezeGun => None,
         }
     }

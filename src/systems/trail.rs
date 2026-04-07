@@ -20,7 +20,7 @@ pub fn trail_attach(
             // Trail-Farbe: Waffen-Farbe, leicht transparent
             let base = weapon.bullet_color();
             let [r, g, b, _] = base.to_srgba().to_f32_array();
-            let color = Color::srgba(r, g, b, 0.6);
+            let color = Color::srgba(r, g, b, 0.85);
 
             commands.entity(entity).try_insert(TrailEmitter {
                 color,
@@ -73,7 +73,7 @@ pub fn trail_update(
         sprite.custom_size = Some(Vec2::splat(size));
         // Ausblenden
         let [r, g, b, _] = sprite.color.to_srgba().to_f32_array();
-        sprite.color = Color::srgba(r, g, b, 0.6 * (1.0 - frac));
+        sprite.color = Color::srgba(r, g, b, 0.85 * (1.0 - frac));
         // Hinter dem Projektil
         transform.translation.z = 1.0;
     }
