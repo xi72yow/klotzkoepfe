@@ -664,13 +664,29 @@ impl GameSettings {
 
 impl Default for GameSettings {
     fn default() -> Self {
-        let pistol_base = WeaponSettings {
-            cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 350.0,
-            damage: 10.0, bullet_speed: 500.0, score_required: 0,
-            spread_angle: 0.03, max_magazines: 10,
-            score_level_2: 500, score_level_3: 2000,
-            ..WeaponSettings::empty()
-        };
+        let pistol_levels: [WeaponSettings; 3] = [
+            WeaponSettings {
+                cooldown: 0.4, magazine: 12, reload_time: 1.5, range: 400.0,
+                damage: 10.0, bullet_speed: 1000.0, score_required: 0,
+                spread_angle: 0.05, max_magazines: 10,
+                score_level_2: 500, score_level_3: 2000,
+                ..WeaponSettings::empty()
+            },
+            WeaponSettings {
+                cooldown: 0.34, magazine: 15, reload_time: 1.5, range: 600.0,
+                damage: 12.0, bullet_speed: 2000.0, score_required: 0,
+                spread_angle: 0.05, max_magazines: 10,
+                score_level_2: 500, score_level_3: 2000,
+                ..WeaponSettings::empty()
+            },
+            WeaponSettings {
+                cooldown: 0.28, magazine: 18, reload_time: 1.5, range: 1000.0,
+                damage: 14.0, bullet_speed: 4000.0, score_required: 0,
+                spread_angle: 0.05, max_magazines: 10,
+                score_level_2: 500, score_level_3: 2000,
+                ..WeaponSettings::empty()
+            },
+        ];
         let uzi_base = WeaponSettings {
             cooldown: 0.08, magazine: 30, reload_time: 2.0, range: 250.0,
             damage: 5.0, bullet_speed: 450.0, score_required: 200,
@@ -735,7 +751,7 @@ impl Default for GameSettings {
             min_spawn_interval: 0.2,
             percent_mode_after_wave: 20,
             zombie_increase_percent: 15.0,
-            pistol: make_levels(WeaponType::Pistol, pistol_base),
+            pistol: pistol_levels,
             uzi: make_levels(WeaponType::Uzi, uzi_base),
             grenade: make_levels(WeaponType::Grenade, grenade_base),
             railgun: make_levels(WeaponType::Railgun, railgun_base),
