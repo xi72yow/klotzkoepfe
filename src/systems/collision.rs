@@ -8,11 +8,12 @@ use rand::RngExt;
 
 pub fn apply_knockback(
     time: Res<Time>,
+    field: Res<GameField>,
     mut commands: Commands,
     mut query: Query<(Entity, &mut Knockback, &mut Transform)>,
 ) {
-    let half_w = crate::constants::WINDOW_WIDTH / 2.0 - crate::constants::WALL_THICKNESS;
-    let half_h = crate::constants::WINDOW_HEIGHT / 2.0 - crate::constants::WALL_THICKNESS;
+    let half_w = field.width / 2.0 - crate::constants::WALL_THICKNESS;
+    let half_h = field.height / 2.0 - crate::constants::WALL_THICKNESS;
 
     for (entity, mut kb, mut transform) in query.iter_mut() {
         kb.duration.tick(time.delta());

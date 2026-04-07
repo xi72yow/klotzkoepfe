@@ -309,17 +309,28 @@ pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
     mut query: Query<(&mut Player, &mut Transform)>,
 ) {
-    let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - PLAYER_SIZE.x / 2.0;
-    let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS - PLAYER_SIZE.y / 2.0;
+    let half_w = field.width / 2.0 - WALL_THICKNESS - PLAYER_SIZE.x / 2.0;
+    let half_h = field.height / 2.0 - WALL_THICKNESS - PLAYER_SIZE.y / 2.0;
 
     for (mut player, mut transform) in query.iter_mut() {
-        // Crouching (gehalten)
-        player.crouching = match player.id {
-            PlayerId::P1 => keyboard.any_pressed([KeyCode::KeyC, KeyCode::ShiftLeft]),
-            PlayerId::P2 => keyboard.pressed(KeyCode::Numpad0),
-        };
+        // Crouching (Hold oder Toggle je nach Setting)
+        if settings.crouch_toggle {
+            let just_pressed = match player.id {
+                PlayerId::P1 => keyboard.any_just_pressed([KeyCode::KeyC, KeyCode::ShiftLeft]),
+                PlayerId::P2 => keyboard.just_pressed(KeyCode::Numpad0),
+            };
+            if just_pressed {
+                player.crouching = !player.crouching;
+            }
+        } else {
+            player.crouching = match player.id {
+                PlayerId::P1 => keyboard.any_pressed([KeyCode::KeyC, KeyCode::ShiftLeft]),
+                PlayerId::P2 => keyboard.pressed(KeyCode::Numpad0),
+            };
+        }
 
         let mut direction = Vec2::ZERO;
         match player.id {
@@ -398,7 +409,7 @@ pub fn player_walk_animation(
             // Bein-Animation: Beine bewegen sich in Laufrichtung
             if let Ok((leg, mut transform)) = leg_query.get_mut(child) {
                 let base_x = LEG_SPACING * leg.side * (1.0 + cf * 0.3); // breiter wenn geduckt
-                let base_y = -14.0 + crouch_y_offset;
+                let base_y = -14.0; // Beine bleiben beim Ducken an Ort und Stelle
 
                 if is_moving {
                     let phase = leg.side;

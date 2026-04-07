@@ -82,6 +82,7 @@ pub fn setup_pixelation(mut commands: Commands) {
 /// Synchronisiert PixelationMaterial mit GameSettings
 pub fn update_pixelation(
     settings: Res<GameSettings>,
+    field: Res<crate::resources::GameField>,
     mut query: Query<&mut PixelationMaterial>,
 ) {
     for mut mat in query.iter_mut() {
@@ -99,7 +100,7 @@ pub fn update_pixelation(
             mat.chromatic_aberration = 0.0;
             mat.vignette_intensity = 0.0;
         }
-        mat.screen_width = WINDOW_WIDTH;
-        mat.screen_height = WINDOW_HEIGHT;
+        mat.screen_width = field.screen_width;
+        mat.screen_height = field.screen_height;
     }
 }

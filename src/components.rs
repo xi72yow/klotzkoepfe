@@ -500,8 +500,14 @@ pub struct Health {
 #[derive(Component)]
 pub struct Velocity(pub Vec2);
 
+#[derive(Component, Clone, Copy, PartialEq)]
+pub enum WallSide { Top, Bottom, Left, Right }
+
 #[derive(Component)]
 pub struct Wall;
+
+#[derive(Component)]
+pub struct FloorSprite;
 
 #[derive(Component)]
 pub struct PlayerHpBar;
@@ -628,6 +634,12 @@ pub struct TrailEmitter {
 
 #[derive(Component)]
 pub struct TrailParticle {
+    pub lifetime: Timer,
+    pub initial_size: f32,
+}
+
+#[derive(Component)]
+pub struct WallImpactParticle {
     pub lifetime: Timer,
     pub initial_size: f32,
 }

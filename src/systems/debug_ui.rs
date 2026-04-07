@@ -114,6 +114,7 @@ fn all_items() -> Vec<Item> {
         Item::Value(Entry { label: "Regen/s", help: "HP-Regeneration pro Sekunde (0=aus)", get: |s| s.player_regen_rate, set: |s,v| s.player_regen_rate = v, step: 0.5, min: 0.0, max: 100.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Regen-Delay", help: "Sekunden nach Schaden bis Regen startet", get: |s| s.player_regen_delay, set: |s,v| s.player_regen_delay = v, step: 0.5, min: 0.5, max: 30.0, display: DisplayMode::Float }),
         Item::Value(Entry { label: "Duck-Speed", help: "Geschwindigkeit beim Ducken (0.4=40% von normal)", get: |s| s.crouch_speed_factor, set: |s,v| s.crouch_speed_factor = v, step: 0.05, min: 0.1, max: 1.0, display: DisplayMode::Float }),
+        Item::Value(Entry { label: "Duck-Toggle", help: "Ducken per Toggle statt Halten", get: |s| if s.crouch_toggle { 1.0 } else { 0.0 }, set: |s,v| s.crouch_toggle = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Friendly Fire", help: "Spieler-Projektile treffen anderen Spieler", get: |s| if s.friendly_fire { 1.0 } else { 0.0 }, set: |s,v| s.friendly_fire = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "Expl. FF", help: "Explosionen verletzen auch Spieler", get: |s| if s.explosion_friendly_fire { 1.0 } else { 0.0 }, set: |s,v| s.explosion_friendly_fire = v >= 0.5, step: 1.0, min: 0.0, max: 1.0, display: DisplayMode::Bool }),
         Item::Value(Entry { label: "KB Spieler", help: "Knockback-Staerke auf Spieler bei Treffer", get: |s| s.knockback_strength_player, set: |s,v| s.knockback_strength_player = v, step: 25.0, min: 0.0, max: 1000.0, display: DisplayMode::Float }),
@@ -1319,11 +1320,12 @@ pub fn gm_wave_apply(
 pub fn grid_overlay_gizmos(
     mut gizmos: Gizmos,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
 ) {
     if !settings.show_grid { return; }
 
-    let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
-    let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
+    let half_w = field.width / 2.0 - WALL_THICKNESS;
+    let half_h = field.height / 2.0 - WALL_THICKNESS;
     let color = Color::srgba(1.0, 1.0, 1.0, 0.08);
     let axis_color = Color::srgba(1.0, 1.0, 1.0, 0.15);
     let z = 19.0;

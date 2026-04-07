@@ -9,6 +9,7 @@ pub fn zombie_spawn(
     mut commands: Commands,
     time: Res<Time>,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
     mut wave: ResMut<WaveState>,
 ) {
     if !wave.active || wave.zombies_to_spawn == 0 {
@@ -20,8 +21,8 @@ pub fn zombie_spawn(
     if wave.spawn_timer.just_finished() {
         let mut rng = rand::rng();
 
-        let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.x;
-        let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.y;
+        let half_w = field.width / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.x;
+        let half_h = field.height / 2.0 - WALL_THICKNESS - ZOMBIE_SIZE.y;
 
         let side = rng.random_range(0..4);
         let pos = match side {

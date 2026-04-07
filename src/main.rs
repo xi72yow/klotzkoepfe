@@ -41,6 +41,7 @@ fn main() {
         .init_resource::<weapons::UnlockedWeapons>()
         .insert_resource(GameSettings::load())
         .init_resource::<audio::SoundQueue>()
+        .init_resource::<GameField>()
         // Startup: nur globale Systeme (kein Spieler/HUD/Crates - das kommt bei OnEnter(Playing))
         .add_systems(
             Startup,
@@ -63,7 +64,7 @@ fn main() {
             hud::restart_game,
         )
         // Pause-Toggle, Fullscreen, Pixelation und Audio laufen immer
-        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, pixelation::update_pixelation, audio::play_sounds))
+        .add_systems(Update, (hud::pause_toggle, fullscreen_toggle, sync_game_field, room::sync_room, ground_decals::resize_decal_texture, pixelation::update_pixelation, audio::play_sounds))
         // Settings-UI nur im Pause-State
         .add_systems(OnEnter(GameState::Paused), debug_ui::setup_pause_ui)
         .add_systems(
@@ -106,6 +107,7 @@ fn main() {
                 collision::bullet_player_collision,
                 collision::zombie_player_collision,
                 blood::blood_update,
+                bullet::wall_impact_update,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -198,6 +200,7 @@ fn apply_game_speed(
 fn start_playing(
     mut commands: Commands,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
     mut wave: ResMut<resources::WaveState>,
     existing_players: Query<&components::Player>,
 ) {
@@ -211,7 +214,7 @@ fn start_playing(
         wave.current_wave = settings.gm_start_wave.saturating_sub(1);
     }
     player::do_spawn_players(&mut commands, &settings);
-    hud::setup_hud(commands.reborrow());
+    hud::do_setup_hud(commands.reborrow(), field.screen_width, field.screen_height);
     crates::do_setup_base_crates(&mut commands, &settings);
 }
 
@@ -231,6 +234,24 @@ fn fullscreen_toggle(
         };
         if window.mode != target_mode {
             window.mode = target_mode;
+        }
+    }
+}
+
+fn sync_game_field(
+    windows: Query<&Window>,
+    mut field: ResMut<GameField>,
+) {
+    if let Ok(window) = windows.single() {
+        let sw = window.resolution.width();
+        let sh = window.resolution.height();
+        let pw = sw - 2.0 * resources::FIELD_MARGIN;
+        let ph = sh - 2.0 * resources::FIELD_MARGIN;
+        if (sw - field.screen_width).abs() > 1.0 || (sh - field.screen_height).abs() > 1.0 {
+            field.screen_width = sw;
+            field.screen_height = sh;
+            field.width = pw.max(200.0);
+            field.height = ph.max(150.0);
         }
     }
 }

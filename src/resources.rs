@@ -1,8 +1,35 @@
 use bevy::prelude::*;
 
 use crate::components::WeaponType;
-
 use crate::components::PlayerId;
+use crate::constants::{WINDOW_WIDTH, WINDOW_HEIGHT};
+
+/// Rand ausserhalb der Waende (fuer HUD etc.)
+pub const FIELD_MARGIN: f32 = 60.0;
+
+/// Dynamische Spielfeldgroesse - passt sich an Fenster/Vollbild an
+#[derive(Resource)]
+pub struct GameField {
+    /// Spielfeld-Breite (innerhalb Waende, ohne Margin)
+    pub width: f32,
+    /// Spielfeld-Hoehe (innerhalb Waende, ohne Margin)
+    pub height: f32,
+    /// Volle Fensterbreite
+    pub screen_width: f32,
+    /// Volle Fensterhoehe
+    pub screen_height: f32,
+}
+
+impl Default for GameField {
+    fn default() -> Self {
+        Self {
+            width: WINDOW_WIDTH - 2.0 * FIELD_MARGIN,
+            height: WINDOW_HEIGHT - 2.0 * FIELD_MARGIN,
+            screen_width: WINDOW_WIDTH,
+            screen_height: WINDOW_HEIGHT,
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct WaveState {
@@ -243,6 +270,8 @@ pub struct GameSettings {
     pub player_regen_delay: f32,
     #[serde(default = "default_crouch_speed")]
     pub crouch_speed_factor: f32,
+    #[serde(default)]
+    pub crouch_toggle: bool,
 
     pub zombie_speed: f32,
     pub zombie_hp: f32,
@@ -729,6 +758,7 @@ impl Default for GameSettings {
             player_regen_rate: 0.0,
             player_regen_delay: 5.0,
             crouch_speed_factor: default_crouch_speed(),
+            crouch_toggle: false,
             zombie_speed: 20.0,
             zombie_hp: 30.0,
             zombie_damage: 10.0,

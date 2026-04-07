@@ -18,11 +18,11 @@ const SPARK_INTERVAL: f32 = 0.04;
 const SPARK_LIFETIME: f32 = 0.4;
 
 /// Generate a random position inside the room with some margin from walls
-fn random_room_position() -> Vec2 {
+fn random_room_position(field: &GameField) -> Vec2 {
     let mut rng = rand::rng();
     let margin = WALL_THICKNESS + 40.0;
-    let half_w = WINDOW_WIDTH / 2.0 - margin;
-    let half_h = WINDOW_HEIGHT / 2.0 - margin;
+    let half_w = field.width / 2.0 - margin;
+    let half_h = field.height / 2.0 - margin;
     Vec2::new(
         rng.random_range(-half_w..half_w),
         rng.random_range(-half_h..half_h),
@@ -197,12 +197,13 @@ pub fn base_crate_respawn(
     mut commands: Commands,
     time: Res<Time>,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
     mut spawner_query: Query<(Entity, &mut BaseCrateSpawner)>,
 ) {
     for (entity, mut spawner) in spawner_query.iter_mut() {
         spawner.respawn_timer.tick(time.delta());
         if spawner.respawn_timer.is_finished() {
-            let pos = random_room_position();
+            let pos = random_room_position(&field);
             spawn_flare(&mut commands, pos, &settings);
             commands.entity(entity).try_despawn();
         }

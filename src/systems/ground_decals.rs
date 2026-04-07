@@ -36,21 +36,15 @@ pub struct GroundDecalMap {
 
 impl GroundDecalMap {
     /// Welt-Koordinaten (0,0 = Mitte) -> Pixel-Koordinaten (0,0 = oben-links)
-    fn world_to_pixel(&self, world_pos: Vec2) -> (i32, i32) {
-        let px = (world_pos.x + WINDOW_WIDTH / 2.0) * (self.width as f32 / WINDOW_WIDTH);
-        let py = (-world_pos.y + WINDOW_HEIGHT / 2.0) * (self.height as f32 / WINDOW_HEIGHT);
+    /// Textur ist 1:1 zum Spielfeld, daher einfaches Offset-Mapping
+    fn world_to_pixel(&self, world_pos: Vec2, field_w: f32, field_h: f32) -> (i32, i32) {
+        let px = world_pos.x + field_w / 2.0;
+        let py = -world_pos.y + field_h / 2.0;
         (px as i32, py as i32)
     }
 }
 
-/// Startup: Decal-Image und Layer-Sprite erstellen
-pub fn setup_ground_decals(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let width = DECAL_TEXTURE_WIDTH;
-    let height = DECAL_TEXTURE_HEIGHT;
-
+fn create_decal_image(width: u32, height: u32) -> Image {
     let mut image = Image::new_fill(
         Extent3d {
             width,
@@ -63,13 +57,26 @@ pub fn setup_ground_decals(
         RenderAssetUsages::all(),
     );
     image.sampler = bevy::image::ImageSampler::nearest();
+    image
+}
 
+/// Startup: Decal-Image und Layer-Sprite erstellen
+pub fn setup_ground_decals(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    field: Res<crate::resources::GameField>,
+) {
+    // Textur = 1:1 zum Spielfeld (1 Pixel = 1 World Unit)
+    let width = field.width as u32;
+    let height = field.height as u32;
+
+    let image = create_decal_image(width, height);
     let image_handle = images.add(image);
 
     commands.spawn((
         Sprite {
             image: image_handle.clone(),
-            custom_size: Some(Vec2::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
+            custom_size: Some(Vec2::new(field.width, field.height)),
             ..default()
         },
         Transform::from_xyz(0.0, 0.0, 0.5),
@@ -85,10 +92,74 @@ pub fn setup_ground_decals(
     });
 }
 
+/// Bei Feldgroessen-Aenderung: Textur vergroessern, alte Daten zentriert uebernehmen
+pub fn resize_decal_texture(
+    field: Res<crate::resources::GameField>,
+    mut decal_map: ResMut<GroundDecalMap>,
+    mut images: ResMut<Assets<Image>>,
+    mut sprite_query: Query<&mut Sprite, With<GroundDecalLayer>>,
+) {
+    let new_w = field.width as u32;
+    let new_h = field.height as u32;
+
+    if new_w == decal_map.width && new_h == decal_map.height {
+        return;
+    }
+
+    // Alte Pixeldaten rauskopieren
+    let old_w = decal_map.width;
+    let old_h = decal_map.height;
+    let old_data: Option<Vec<u8>> = images.get(&decal_map.image_handle)
+        .and_then(|img| img.data.as_ref().map(|d| d.clone()));
+
+    // Neue Textur erstellen
+    let new_image = create_decal_image(new_w, new_h);
+    let new_handle = images.add(new_image);
+
+    // Alte Daten zentriert in neue Textur kopieren
+    if let Some(old_pixels) = old_data {
+        if let Some(new_image) = images.get_mut(&new_handle) {
+            if let Some(new_data) = new_image.data.as_mut() {
+                let offset_x = (new_w as i32 - old_w as i32) / 2;
+                let offset_y = (new_h as i32 - old_h as i32) / 2;
+
+                for y in 0..old_h as i32 {
+                    let dst_y = y + offset_y;
+                    if dst_y < 0 || dst_y >= new_h as i32 { continue; }
+                    for x in 0..old_w as i32 {
+                        let dst_x = x + offset_x;
+                        if dst_x < 0 || dst_x >= new_w as i32 { continue; }
+                        let src_idx = (y as u32 * old_w + x as u32) as usize * 4;
+                        let dst_idx = (dst_y as u32 * new_w + dst_x as u32) as usize * 4;
+                        if src_idx + 3 < old_pixels.len() && dst_idx + 3 < new_data.len() {
+                            new_data[dst_idx..dst_idx + 4].copy_from_slice(&old_pixels[src_idx..src_idx + 4]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Alte Textur entfernen
+    images.remove(&decal_map.image_handle);
+
+    // Resource updaten
+    decal_map.image_handle = new_handle.clone();
+    decal_map.width = new_w;
+    decal_map.height = new_h;
+
+    // Sprite updaten
+    for mut sprite in sprite_query.iter_mut() {
+        sprite.image = new_handle.clone();
+        sprite.custom_size = Some(Vec2::new(field.width, field.height));
+    }
+}
+
 /// Verarbeitet alle pending Stamps und malt auf das Image
 pub fn process_decal_stamps(
     mut decal_map: ResMut<GroundDecalMap>,
     mut images: ResMut<Assets<Image>>,
+    field: Res<crate::resources::GameField>,
 ) {
     if decal_map.pending_stamps.is_empty() {
         return;
@@ -112,21 +183,21 @@ pub fn process_decal_stamps(
                 color,
                 radius,
             } => {
-                let (cx, cy) = decal_map.world_to_pixel(position);
+                let (cx, cy) = decal_map.world_to_pixel(position, field.width, field.height);
                 stamp_circle(
                     data,
                     width,
                     height,
                     cx,
                     cy,
-                    radius * (width as f32 / WINDOW_WIDTH),
+                    radius,
                     color,
                     0.7,
                 );
             }
             DecalStamp::Burn { position, radius } => {
-                let (cx, cy) = decal_map.world_to_pixel(position);
-                let pixel_radius = radius * (width as f32 / WINDOW_WIDTH);
+                let (cx, cy) = decal_map.world_to_pixel(position, field.width, field.height);
+                let pixel_radius = radius;
                 // Schwarzes Zentrum
                 stamp_circle(
                     data,
@@ -152,8 +223,8 @@ pub fn process_decal_stamps(
                 );
             }
             DecalStamp::Ash { position, radius } => {
-                let (cx, cy) = decal_map.world_to_pixel(position);
-                let pixel_radius = radius * (width as f32 / WINDOW_WIDTH);
+                let (cx, cy) = decal_map.world_to_pixel(position, field.width, field.height);
+                let pixel_radius = radius;
                 let mut rng = rand::rng();
                 // Mehrere kleine zufaellige Kleckse statt perfektem Kreis
                 let blob_count = rng.random_range(4..7);
@@ -282,3 +353,4 @@ pub fn clear_decal_map(decal_map: &mut GroundDecalMap, images: &mut Assets<Image
     decal_map.pending_stamps.clear();
     decal_map.dirty = false;
 }
+

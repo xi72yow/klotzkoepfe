@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::components::*;
 use crate::constants::*;
-use crate::resources::GameSettings;
+use crate::resources::{GameSettings, GameField};
 use super::ground_decals::{DecalStamp, GroundDecalMap};
 use super::explosion_fx::{self, ExplosionMaterial};
 use rand::RngExt;
@@ -10,10 +10,11 @@ use rand::RngExt;
 pub fn bullet_movement(
     mut commands: Commands,
     time: Res<Time>,
+    field: Res<GameField>,
     mut query: Query<(Entity, &mut Transform, &Velocity, &mut Bullet)>,
 ) {
-    let half_w = WINDOW_WIDTH / 2.0;
-    let half_h = WINDOW_HEIGHT / 2.0;
+    let half_w = field.width / 2.0 - WALL_THICKNESS;
+    let half_h = field.height / 2.0 - WALL_THICKNESS;
 
     for (entity, mut transform, velocity, mut bullet) in query.iter_mut() {
         let delta = time.delta_secs();
@@ -23,10 +24,14 @@ pub fn bullet_movement(
 
         bullet.range_remaining -= move_dist;
 
-        if bullet.range_remaining <= 0.0
-            || transform.translation.x.abs() > half_w
-            || transform.translation.y.abs() > half_h
-        {
+        let hit_wall = transform.translation.x.abs() > half_w
+            || transform.translation.y.abs() > half_h;
+
+        if bullet.range_remaining <= 0.0 || hit_wall {
+            if hit_wall {
+                let pos = transform.translation.truncate();
+                spawn_wall_impact(&mut commands, pos, bullet.damage);
+            }
             commands.entity(entity).try_despawn();
         }
     }
@@ -36,16 +41,17 @@ pub fn grenade_movement(
     mut commands: Commands,
     time: Res<Time>,
     _settings: Res<GameSettings>,
+    field: Res<GameField>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &mut Velocity, &mut GrenadeProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<GrenadeProjectile>)>,
     mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
-    let wall_min_x = -WINDOW_WIDTH / 2.0 + WALL_THICKNESS;
-    let wall_max_x = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
-    let wall_min_y = -WINDOW_HEIGHT / 2.0 + WALL_THICKNESS;
-    let wall_max_y = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
+    let wall_min_x = -field.width / 2.0 + WALL_THICKNESS;
+    let wall_max_x = field.width / 2.0 - WALL_THICKNESS;
+    let wall_min_y = -field.height / 2.0 + WALL_THICKNESS;
+    let wall_max_y = field.height / 2.0 - WALL_THICKNESS;
 
     let mut rng = rand::rng();
 
@@ -112,14 +118,15 @@ pub fn grenade_movement(
 pub fn rocket_movement(
     mut commands: Commands,
     time: Res<Time>,
+    field: Res<GameField>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     mut query: Query<(Entity, &mut Transform, &Velocity, &mut RocketProjectile)>,
     zombie_query: Query<&Transform, (With<Zombie>, Without<RocketProjectile>)>,
     mut sound_events: ResMut<super::audio::SoundQueue>,
 ) {
-    let half_w = WINDOW_WIDTH / 2.0 - WALL_THICKNESS;
-    let half_h = WINDOW_HEIGHT / 2.0 - WALL_THICKNESS;
+    let half_w = field.width / 2.0 - WALL_THICKNESS;
+    let half_h = field.height / 2.0 - WALL_THICKNESS;
 
     for (entity, mut transform, velocity, mut rocket) in query.iter_mut() {
         let delta = time.delta_secs();
@@ -301,5 +308,57 @@ fn spawn_shrapnel(commands: &mut Commands, pos: Vec2, base_damage: f32, level: u
             },
             Velocity(dir * speed),
         ));
+    }
+}
+
+/// Spawnt Wand-Aufprall-Partikel. Anzahl und Groesse abhaengig vom Damage.
+fn spawn_wall_impact(commands: &mut Commands, pos: Vec2, damage: f32) {
+    let mut rng = rand::rng();
+    let count = (damage * 0.4).clamp(3.0, 15.0) as u32;
+    let base_size = (damage * 0.3).clamp(3.0, 10.0);
+    let speed = (damage * 3.0).clamp(60.0, 300.0);
+
+    for _ in 0..count {
+        let angle = rng.random_range(0.0..std::f32::consts::TAU);
+        let spd = rng.random_range(speed * 0.4..speed);
+        let dir = Vec2::new(angle.cos(), angle.sin());
+        let size = rng.random_range(base_size * 0.5..base_size);
+        let brightness = rng.random_range(0.5..0.9);
+
+        commands.spawn((
+            Sprite {
+                color: Color::srgba(brightness, brightness * 0.9, brightness * 0.7, 0.9),
+                custom_size: Some(Vec2::splat(size)),
+                ..default()
+            },
+            Transform::from_xyz(pos.x, pos.y, 12.0),
+            Velocity(dir * spd),
+            WallImpactParticle {
+                lifetime: Timer::from_seconds(rng.random_range(0.1..0.25), TimerMode::Once),
+                initial_size: size,
+            },
+        ));
+    }
+}
+
+pub fn wall_impact_update(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut WallImpactParticle, &mut Sprite, &Velocity, &mut Transform)>,
+) {
+    for (entity, mut particle, mut sprite, vel, mut transform) in query.iter_mut() {
+        particle.lifetime.tick(time.delta());
+        if particle.lifetime.is_finished() {
+            commands.entity(entity).try_despawn();
+            continue;
+        }
+        let frac = particle.lifetime.fraction();
+        let dt = time.delta_secs();
+        transform.translation.x += vel.0.x * dt * (1.0 - frac);
+        transform.translation.y += vel.0.y * dt * (1.0 - frac);
+        let size = particle.initial_size * (1.0 - frac);
+        sprite.custom_size = Some(Vec2::splat(size));
+        let [r, g, b, _] = sprite.color.to_srgba().to_f32_array();
+        sprite.color = Color::srgba(r, g, b, 0.9 * (1.0 - frac * frac));
     }
 }

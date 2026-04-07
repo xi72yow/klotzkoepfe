@@ -183,6 +183,7 @@ pub fn weapon_unlock_check(
     mut commands: Commands,
     score: Res<Score>,
     settings: Res<GameSettings>,
+    field: Res<crate::resources::GameField>,
     mut unlocked: ResMut<UnlockedWeapons>,
     player_query: Query<(&Player, &Transform)>,
 ) {
@@ -196,7 +197,7 @@ pub fn weapon_unlock_check(
                 Text2d::new(format!("{} freigeschaltet!", weapon.name())),
                 TextFont { font_size: 22.0, ..default() },
                 TextColor(Color::srgb(1.0, 1.0, 0.3)),
-                Transform::from_xyz(0.0, crate::constants::WINDOW_HEIGHT / 2.0 - 80.0, 40.0),
+                Transform::from_xyz(0.0, field.screen_height / 2.0 - 30.0, 40.0),
                 WeaponUnlockText {
                     lifetime: Timer::from_seconds(3.0, TimerMode::Once),
                 },

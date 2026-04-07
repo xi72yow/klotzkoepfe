@@ -27,8 +27,12 @@ fn ammo_style(weapon: WeaponType) -> (f32, f32, Color) {
     }
 }
 
-pub fn setup_hud(mut commands: Commands) {
-    let track_y = WINDOW_HEIGHT / 2.0 - 40.0;
+pub fn setup_hud(mut commands: Commands, field: Res<GameField>) {
+    do_setup_hud(commands, field.screen_width, field.screen_height);
+}
+
+pub fn do_setup_hud(mut commands: Commands, screen_w: f32, screen_h: f32) {
+    let track_y = screen_h / 2.0 - 30.0;
 
     // Combo-Track Hintergrund
     commands.spawn((
@@ -71,13 +75,13 @@ pub fn setup_hud(mut commands: Commands) {
     ));
 
     // Waffen-Name P1 (links unten)
-    let ammo_y = -WINDOW_HEIGHT / 2.0 + 30.0;
+    let ammo_y = -screen_h / 2.0 + 20.0;
 
     commands.spawn((
         Text2d::new("Pistole"),
         TextFont { font_size: 16.0, ..default() },
         TextColor(PLAYER_COLOR_P1),
-        Transform::from_xyz(-WINDOW_WIDTH / 2.0 + 20.0 + 50.0, ammo_y + 18.0, 20.0),
+        Transform::from_xyz(-screen_w / 2.0 + 20.0 + 50.0, ammo_y + 18.0, 20.0),
         WeaponNameText(PlayerId::P1),
     ));
 
@@ -86,7 +90,7 @@ pub fn setup_hud(mut commands: Commands) {
         Text2d::new("Pistole"),
         TextFont { font_size: 16.0, ..default() },
         TextColor(PLAYER_COLOR_P2),
-        Transform::from_xyz(WINDOW_WIDTH / 2.0 - 20.0 - 50.0, ammo_y + 18.0, 20.0),
+        Transform::from_xyz(screen_w / 2.0 - 20.0 - 50.0, ammo_y + 18.0, 20.0),
         WeaponNameText(PlayerId::P2),
     ));
 }
@@ -126,6 +130,7 @@ pub fn update_hud(
     wave: Res<WaveState>,
     combo: Res<ComboMeter>,
     settings: Res<GameSettings>,
+    field: Res<GameField>,
     player_query: Query<&Player>,
     mut block_query: Query<&mut Transform, With<ComboBlock>>,
     mut score_text: Query<&mut Text2d, (With<ScoreText>, Without<WaveText>, Without<WeaponNameText>)>,
@@ -139,7 +144,7 @@ pub fn update_hud(
         let x = -half_track + combo.position.clamp(0.0, 1.0) * COMBO_TRACK_WIDTH;
         transform.translation.x = x;
         let bounce = (combo.position * std::f32::consts::PI * 4.0).sin().abs() * 4.0;
-        let track_y = WINDOW_HEIGHT / 2.0 - 40.0;
+        let track_y = field.screen_height / 2.0 - 30.0;
         transform.translation.y = track_y + bounce;
     }
 
@@ -184,7 +189,7 @@ pub fn update_hud(
     }
 
     // Munitions-Anzeige dynamisch pro Spieler aufbauen
-    let ammo_y = -WINDOW_HEIGHT / 2.0 + 30.0;
+    let ammo_y = -field.screen_height / 2.0 + 20.0;
 
     for player in player_query.iter() {
         let weapon = player.weapon;
@@ -199,8 +204,8 @@ pub fn update_hud(
         let rows = (magazine + cols_per_row - 1) / cols_per_row;
 
         let base_x = match player.id {
-            PlayerId::P1 => -WINDOW_WIDTH / 2.0 + 20.0,
-            PlayerId::P2 => WINDOW_WIDTH / 2.0 - 20.0 - (cols_per_row.min(magazine) as f32 - 1.0) * spacing_x,
+            PlayerId::P1 => -field.screen_width / 2.0 + 20.0,
+            PlayerId::P2 => field.screen_width / 2.0 - 20.0 - (cols_per_row.min(magazine) as f32 - 1.0) * spacing_x,
         };
 
         for i in 0..magazine {
@@ -390,12 +395,14 @@ pub fn restart_game(world: &mut World) {
 
     // Neu spawnen ueber Commands + flush, damit alles sofort existiert
     let settings = world.resource::<GameSettings>().clone();
+    let field = world.resource::<crate::resources::GameField>();
+    let (sw, sh) = (field.screen_width, field.screen_height);
     {
         let mut commands = world.commands();
         crate::systems::room::do_setup_room(&mut commands);
         crate::systems::crates::do_setup_base_crates(&mut commands, &settings);
         crate::systems::player::do_spawn_players(&mut commands, &settings);
-        setup_hud(commands);
+        do_setup_hud(commands, sw, sh);
     }
     world.flush();
 
